@@ -1,7 +1,7 @@
 
 # Project AURA: Ultimate Audio Assistant (全方位錄音助理)
 
-![CI Status](https://img.shields.io/badge/Status-Prototype-informational?logo=github) ![Python Version](https://img.shields.io/badge/Python-3.12.3-blue?logo=python) ![ASR Engine](https://img.shields.io/badge/ASR-faster--whisper-orange) ![UI](https://img.shields.io/badge/UI-PyQt6-9cf) ![VAD](https://img.shields.io/badge/VAD-WebRTC_VAD-success)
+![CI Status](https://img.shields.io/badge/Status-Prototype-informational?logo=github) ![Python Version](https://img.shields.io/badge/Python-3.12.3-blue?logo=python) ![ASR Engine](https://img.shields.io/badge/ASR-faster--whisper-orange) ![UI](https://img.shields.io/badge/UI-PyQt6-9cf) ![VAD](https://img.shields.io/badge/VAD-WebRTC_VAD-success) ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 ## Executive Summary & Project Metadata
 
@@ -197,8 +197,10 @@ pip install pyaudio
 
 ## 9. License
 
-© 2026 Jason Chia-Sheng Lin (NYCU).
-License TBD (add a LICENSE file if you plan to open-source it publicly).
+This project is licensed under the **MIT License**.  
+See the [`LICENSE`](./LICENSE) file for details.
+
+© 2026 Jason Chia-Sheng Lin (NYCU)
 
 ---
 

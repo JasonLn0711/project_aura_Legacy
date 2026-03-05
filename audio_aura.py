@@ -940,7 +940,7 @@ class MainWindow(QMainWindow):
         self.initSystemTray()
 
     def initUI(self):
-        self.setWindowTitle(f"Aura Audio Assistant (Project Aura) v{__version__} | AI suite with recording, transcription, and intelligent splitting")
+        self.setWindowTitle(f"Aura Audio Assistant (Project Aura) | v{__version__}")
         self.resize(1000, 800)
         
         # Create Tab Widget
@@ -952,8 +952,8 @@ class MainWindow(QMainWindow):
         self.tab_splitter = SplitterTab()
         
         # Add tabs and set labels
-        self.tabs.addTab(self.tab_transcription, "📝 Recording & Transcription")
-        self.tabs.addTab(self.tab_splitter, "✂️ Intelligent Track Splitting")
+        self.tabs.addTab(self.tab_transcription, "📝 Transcribing") 
+        self.tabs.addTab(self.tab_splitter, "✂️ Track Splitting")
 
         # Bottom Status Bar (can display copyright info)
         # ==========================================

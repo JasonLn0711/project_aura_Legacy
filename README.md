@@ -19,6 +19,49 @@ Designed for professional environments, this project features prompt-guided punc
 
 ---
 
+It is **highly recommended** to include a "What's New" or "Changelog" section. It helps users understand new features, informs them of bug fixes, and provides a clear history of the project's evolution.
+
+Below is the updated `README.md` with a new **Release Notes (v2.1.0)** section that captures all your recent technical improvements and UI updates.
+
+---
+
+# Project AURA: Ultimate Audio Assistant (全方位錄音助理)
+
+## Executive Summary & Project Metadata
+
+**Project AURA** is a dual-core desktop assistant designed for professional meeting transcription and audio management. It leverages state-of-the-art AI to provide real-time speech-to-text and intelligent audio file segmentation.
+
+* **Project Lead**: Jason Chia-Sheng Lin (PhD. Student, NYCU)
+* **Current Version**: `2.1.0`
+* **Primary Affiliation**: National Yang Ming Chiao Tung University (NYCU)
+
+---
+
+## 🆕 What's New in v2.1.0
+
+This version introduces significant stability improvements, batch processing capabilities, and advanced audio pre-processing.
+
+### 🚀 Performance & Stability
+
+* **Asynchronous Model Loading**: Introduced `ModelLoaderThread` to load Whisper models in the background, preventing UI freezes during startup or setting changes.
+* **Memory Optimization**: Implemented aggressive garbage collection (`gc.collect()`) and CUDA cache clearing after processing to prevent Out-of-Memory (OOM) errors.
+* **Defensive Programming**: Added safety checks (using `hasattr`) in `closeEvent` to ensure the application shuts down cleanly even if threads are in an inconsistent state.
+
+### 🎙️ Audio Processing Enhancements
+
+* **Real-Time Denoising**: Integrated `noisereduce` for spectral subtraction. Users can now toggle denoising to filter out background hums (like fans or AC) before VAD and transcription.
+* **Volume Normalization**: Added a dynamic normalization layer that standardizes all audio to a user-defined target dBFS (default -20), ensuring consistent results for quiet or loud speakers.
+* **Intelligent VAD Placement**: Denoising is performed *before* Voice Activity Detection (VAD) to improve speech detection accuracy in noisy environments.
+
+### 🛠️ UI & Workflow
+
+* **Batch Transcription**: Now supports multi-file selection with a dedicated queue system and progress bar.
+* **Advanced Settings Container**: A new foldable UI section allows customization of `Beam Size`, `Initial Prompt`, `Language`, and `Compute Type` (float16/int8).
+* **System Tray Integration**: The application can now minimize to the system tray, allowing long transcription tasks to run in the background without cluttering the taskbar.
+* **Auto-Update Checker**: Integrated `UpdateCheckerThread` to notify users of new releases available on GitHub.
+
+---
+
 ## Feature Implementation Checklist
 
 | Feature Category | Implementation Details |

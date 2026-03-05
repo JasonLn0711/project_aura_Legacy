@@ -76,8 +76,8 @@ AURA provides two UI tabs:
 
 ```text
 project_aura/
-├── audio_aura.py             # Main application (UI + ASR + VAD + Splitter + Threads)
-├── audio_aura_zh.py          # Support for traditional Mandarin UI
+├── project_aura.py             # Main application (UI + ASR + VAD + Splitter + Threads)
+├── project_aura_zh.py          # Support for traditional Mandarin UI
 ├── requirements.txt          # Python dependencies
 └── README.md                 # This documentation
 
@@ -146,7 +146,7 @@ pip install -r requirements.txt
 ### 5.1 Run the App
 
 ```bash
-python audio_aura.py
+python project_aura.py
 
 ```
 

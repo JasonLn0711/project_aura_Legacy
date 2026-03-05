@@ -1,4 +1,3 @@
-
 # Project AURA: Ultimate Audio Assistant (全方位錄音助理)
 
 ![CI Status](https://img.shields.io/badge/Status-Prototype-informational?logo=github) ![Python Version](https://img.shields.io/badge/Python-3.12.3-blue?logo=python) ![ASR Engine](https://img.shields.io/badge/ASR-faster--whisper-orange) ![UI](https://img.shields.io/badge/UI-PyQt6-9cf) ![VAD](https://img.shields.io/badge/VAD-WebRTC_VAD-success) ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
@@ -10,13 +9,12 @@
 1) **Real-time / file-based transcription** (ASR) with timestamped logs  
 2) **Smart audio splitting** that finds natural pause points to avoid cutting speech mid-sentence
 
-This project is designed for **Traditional Chinese meeting notes**, with prompt-guided punctuation and automatic transcript backup.
+Designed for professional environments, this project features prompt-guided punctuation, background noise reduction, batch processing, and robust memory management for heavy AI workloads.
 
 - **Project Name**: Project AURA (Ultimate Audio Assistant)
 - **Academic Affiliation**: National Yang Ming Chiao Tung University (NYCU)
 - **Project Lead**: Jason Chia-Sheng Lin (PhD. Student)
-- **Release Version**: `2.0.1`
-- **Release Date**: `2026-02-23`
+- **Release Version**: `2.1.0` (Major Update)
 - **Versioning Strategy**: Semantic Versioning (MAJOR / MINOR / PATCH)
 
 ---
@@ -25,28 +23,27 @@ This project is designed for **Traditional Chinese meeting notes**, with prompt-
 
 | Feature Category | Implementation Details |
 | :--- | :--- |
-| **Real-time Transcription** | Live microphone recording + streaming ASR via `faster-whisper` (GPU supported). |
-| **File Transcription** | Import common audio/video formats and export a timestamped transcript. |
-| **Traditional Chinese Prompting** | Uses an `initial_prompt` to encourage full-width punctuation for professional notes. |
-| **Automatic Backup** | Appends transcript lines to `temp_transcript.txt` during processing. |
-| **Voice Activity Detection (VAD)** | WebRTC VAD-based speech segmentation with configurable aggressiveness. |
-| **Smart Splitting** | Uses silence detection to cut near natural pauses within target length windows. |
-| **Modern Desktop UI** | PyQt6 tabs + waveform visualization via `pyqtgraph` + themed UI (`qt-material`). |
-| **Linux Audio Robustness** | PulseAudio device probing + ALSA error handler suppression for cleaner logs. |
+| **Real-time Transcription** | Live microphone recording + streaming ASR via `faster-whisper`. |
+| **Batch Transcription** | Import multiple audio/video files with queue scheduling and progress tracking. |
+| **Real-Time Denoising** | `noisereduce` integration for spectral subtraction before ASR to ensure clean audio. |
+| **Volume Normalization** | Dynamically standardizes imported and recorded audio to a target dBFS (e.g., -20 dBFS). |
+| **Asynchronous Architecture** | `ModelLoaderThread` prevents UI freezing during initialization and compute-type switching. |
+| **Advanced Memory Management** | Aggressive garbage collection (`gc.collect()`) and CUDA cache clearing to prevent OOM errors. |
+| **System Tray Integration** | Minimizes to background (`QSystemTrayIcon`) for uninterrupted long-running transcription tasks. |
+| **Auto-Update Checker** | Background thread automatically checks the GitHub API for new releases. |
+| **Smart Splitting** | Uses silence detection to cut near natural pauses; auto-detects original bitrate to prevent file bloat. |
+| **Modern Desktop UI** | PyQt6 tabs, live waveform visualization, and a foldable "Advanced Settings" container. |
 
 ---
 
 ## 1. Project Introduction
 
-Taking meeting notes from long recordings is expensive and error-prone. **Project AURA** turns raw audio into structured artifacts:
-
-- **Transcription output**: timestamped text stream suitable for meeting minutes
-- **Split output**: multiple smaller audio segments suitable for review, annotation, or downstream ASR
+Taking meeting notes from long recordings is expensive and error-prone. **Project AURA** turns raw audio into structured artifacts with high efficiency.
 
 AURA provides two UI tabs:
 
-- **📝 Recording & Transcription**: record mic audio, view live waveform, generate transcript, save `.txt`
-- **✂️ Smart Splitter**: choose file + output folder, pick target length & tolerance, then export segmented chunks
+- **📝 Recording & Transcription**: Record mic audio, view live waveforms, process batches of files, and manage advanced model settings (Language, Beam Size, Target dBFS, Compute Type).
+- **✂️ Smart Splitter**: Choose a file + output folder, pick a target length & tolerance, and export segmented chunks without cutting off sentences.
 
 ---
 
@@ -54,12 +51,13 @@ AURA provides two UI tabs:
 
 ```text
 project_aura/
-├── audio_assistant_v1.2.py   # Main application (UI + ASR + VAD + splitter)
+├── audio_aura.py        # Main application (UI + ASR + VAD + Splitter + Threads)
 ├── requirements.txt          # Python dependencies
 └── README.md                 # This documentation
+
 ```
 
-> Note: Large audio outputs and temporary transcripts are intentionally excluded from Git tracking.
+> Note: Large audio outputs, `temp_transcript.txt`, and temporary WAV files are intentionally excluded from Git tracking and are auto-cleaned by the application.
 
 ---
 
@@ -73,15 +71,14 @@ project_aura/
 
 ### 3.2 Core Python Dependencies
 
-This project uses:
+Install via `requirements.txt`:
 
-* `faster-whisper` (ASR)
-* `pyaudio` + PulseAudio / ALSA (audio input)
-* `webrtcvad` (speech detection)
-* `pydub` (audio loading/export)
-* `pyqt6`, `pyqtgraph`, `qt-material` (UI)
-
-Install via `requirements.txt` (see below).
+* `faster-whisper` (ASR Engine)
+* `pyaudio` + PulseAudio / ALSA (Audio input)
+* `webrtcvad` (Speech detection)
+* `pydub` (Audio loading/export & volume normalization)
+* `pyqt6`, `pyqtgraph`, `qt-material` (UI & System Tray)
+* `noisereduce`, `requests` (Denoising & Auto-updater)
 
 ---
 
@@ -95,11 +92,10 @@ sudo apt-get update
 # Audio I/O (PyAudio)
 sudo apt-get install -y portaudio19-dev python3-dev
 
-# ffmpeg is required for pydub to read many formats (mp3/mp4/m4a, etc.)
+# ffmpeg is required for pydub to read and process media formats
 sudo apt-get install -y ffmpeg
-```
 
-> If your mic devices behave oddly, confirm PulseAudio / PipeWire is working on your Ubuntu desktop.
+```
 
 ### 4.2 Create a Virtual Environment (Recommended)
 
@@ -107,101 +103,81 @@ sudo apt-get install -y ffmpeg
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
+
 ```
 
 ### 4.3 Install Python Dependencies
 
 ```bash
 pip install -r requirements.txt
+
 ```
 
 ---
 
-## 5. Execution Commands
+## 5. Execution Commands & UI Workflow
 
 ### 5.1 Run the App
 
 ```bash
-python audio_assistant_v1.2.py
+python audio_aura.py
+
 ```
 
 ### 5.2 Expected UI Workflow
 
 **Tab 1 — Recording & Transcription**
 
-1. Wait for GPU model initialization (status label updates)
-2. Click **🎙️ Start Recording**
-3. Speak normally; waveform updates live
-4. Click **🛑 Stop Recording**
-5. Save transcript via **💾 Save transcript (.txt)**
+1. **Async Loading**: Wait for the background `ModelLoaderThread` to initialize (UI remains responsive).
+2. **Advanced Settings**: Click **▶ Show Advanced Settings** to adjust Target dBFS, Compute Type (`float16`/`int8`), Language, and toggle Real-time Denoise.
+3. **Record**: Click **🎙️ Start Recording**. Waveform updates live. Minimize to System Tray if needed.
+4. **Batch Import**: Click **📁 Import Audio/Video** to select multiple files. A progress bar will track the queue.
+5. **Save**: Save transcripts via **💾 Save transcript (.txt)**.
 
 **Tab 2 — Smart Splitter**
 
-1. Select input file (mp3/wav/m4a/mp4/flac)
-2. Select output folder
-3. Set target length (minutes) + tolerance
-4. Click **Start** to export `*_part01`, `*_part02`, ...
+1. Select input file (mp3/wav/m4a/mp4/flac).
+2. Select output folder.
+3. Set target length (minutes) + tolerance.
+4. Click **Start** to export intelligently split audio chunks.
 
 ---
 
 ## 6. Configuration (Key Defaults)
 
 * **Sample Rate**: `16000`
-* **Chunk Size**: `30ms`
 * **VAD Level**: `3` (aggressive)
+* **Target Volume**: `-20.0 dBFS` (dynamically standardizes loud/quiet speakers)
 * **Model**: `SoybeanMilk/faster-whisper-Breeze-ASR-25`
-* **Device**: `cuda` (change to `cpu` if no GPU)
-* **Compute Type**: `float16`
-
-> If you do not have a GPU, set `DEVICE="cpu"` and consider `COMPUTE_TYPE="int8"` depending on your environment.
+* **Compute Type**: UI selectable (`float16` for GPU, `int8` for CPU)
+* **Denoise**: Disabled by default (Enable in UI for noisy environments)
 
 ---
 
-## 7. Output Artifacts
+## 7. Troubleshooting
 
-During runtime, AURA may create:
+### 7.1 "Out of Memory" (OOM) Errors on GPU
 
-* `temp_transcript.txt` (auto-backup transcript stream)
-* `*.wav` + normalized `*.mp3` for recordings
-* split audio chunks: `{basename}_part01.{ext}`, `{basename}_part02.{ext}`, ...
+If the app crashes or throws an OOM error during model load or batch processing:
 
----
+* Open **Advanced Settings** and change Compute Type to `int8`.
+* Ensure no other heavy VRAM applications are running.
+* The app now includes aggressive GC and `torch.cuda.empty_cache()` to mitigate this between files.
 
-## 8. Troubleshooting
+### 7.2 File Bloat in Smart Splitter
 
-### 8.1 “Invalid sample rate” / mic device issues (Linux)
+If your exported files are larger than the original:
 
-* AURA tries to prioritize **PulseAudio** devices for automatic resampling
-* If it fails, confirm your system microphone works in system settings and that PulseAudio/PipeWire is running
+* The app now utilizes `mediainfo` to automatically detect and match the original bitrate instead of forcing 192k. Ensure `ffmpeg` is properly installed on your system.
 
-### 8.2 `pyaudio` install fails
+### 7.3 Mic Device Issues (Linux)
 
-Make sure you installed:
-
-```bash
-sudo apt-get install -y portaudio19-dev python3-dev
-```
-
-Then reinstall:
-
-```bash
-pip install pyaudio
-```
-
-### 8.3 Slow transcription on CPU
-
-* Switch to GPU if available
-* Reduce model size / adjust compute type
+* AURA prioritizes **PulseAudio** devices for automatic resampling. Confirm your system microphone works in system settings and that PulseAudio/PipeWire is active.
 
 ---
 
-## 9. License
+## 8. License
 
-This project is licensed under the **MIT License**.  
-See the [`LICENSE`](./LICENSE) file for details.
+This project is licensed under the **MIT License**.
 
 © 2026 Jason Chia-Sheng Lin (NYCU)
-
----
-
-***Project Lead**: Jason Chia-Sheng Lin | National Yang Ming Chiao Tung University (NYCU)*

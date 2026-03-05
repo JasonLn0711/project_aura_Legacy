@@ -5,7 +5,7 @@
 !*/
 
 # Allow specific files
-!audio_assistant_v1.2.py
+!audio_aura.py
 !requirements.txt
 !README.md
 !LICENSE

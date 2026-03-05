@@ -509,7 +509,7 @@ class TranscriptionTab(QWidget):
         prompt_layout = QVBoxLayout()
         prompt_layout.addWidget(QLabel("Initial Prompt:"))
         self.prompt_input = QLineEdit()
-        self.prompt_input.setText("This is a professional meeting record, please use correct punctuation.")
+        self.prompt_input.setText("這是一份專業的繁體中文會議紀錄，請務必根據語氣加上正確的全形標點符號。")
         prompt_layout.addWidget(self.prompt_input)
         settings_vbox.addLayout(prompt_layout)
 
@@ -629,13 +629,13 @@ class TranscriptionTab(QWidget):
                 self.process_next_file()
 
     def apply_model_settings(self):
-        """手動觸發模型重新載入"""
+        """Manually trigger model reloading"""
         if self.model_loader and self.model_loader.isRunning():
             return
 
         new_compute = self.combo_compute.currentData()
         self.btn_reload_model.setEnabled(False)
-        self.btn_reload_model.setText("⏳ 載入中...")
+        self.btn_reload_model.setText("⏳ Loading...")
 
         self.model_loader = ModelLoaderThread(DEVICE, new_compute)
         self.model_loader.status_signal.connect(self.update_status_only)
@@ -645,29 +645,29 @@ class TranscriptionTab(QWidget):
 
     @pyqtSlot(object)
     def on_model_loaded(self, new_model):
-        """當模型載入完成時的處理"""
-        # 釋放舊模型
+        """When the model is loaded successfully"""
+        # Release the old model
         if self.transcriber_thread.model:
             del self.transcriber_thread.model
             gc.collect()
         
         self.transcriber_thread.model = new_model
         self.btn_reload_model.setEnabled(True)
-        self.btn_reload_model.setText("🔄 重新載入模型")
-        self.status_label.setText(f"✅ 模型已就緒 ({self.combo_compute.currentText()})")
+        self.btn_reload_model.setText("🔄 Reload Model")
+        self.status_label.setText(f"✅ Model is ready ({self.combo_compute.currentText()})")
 
     @pyqtSlot(str)
     def on_model_error(self, err_msg):
-        QMessageBox.critical(self, "模型載入失敗", err_msg)
+        QMessageBox.critical(self, "Model Loading Failed", err_msg)
         self.btn_reload_model.setEnabled(True)
-        self.btn_reload_model.setText("🔄 重新載入模型")
+        self.btn_reload_model.setText("🔄 Reload Model")
 
     def process_next_file(self):
-        """批次處理核心邏輯"""
+        """Batch processing core logic"""
         if not self.pending_files:
             self.btn_record.setEnabled(True)
             self.btn_import.setEnabled(True)
-            self.status_label.setText("✅ 所有批次任務已完成")
+            self.status_label.setText("✅ All batch tasks completed")
             self.batch_progress.setVisible(False)
             self.total_batch_count = 0
             return
@@ -675,16 +675,16 @@ class TranscriptionTab(QWidget):
         file_path = self.pending_files.pop(0)
         base_name = os.path.splitext(os.path.basename(file_path))[0]
         
-        # 更新當前存檔路徑資訊
+        # Update current save path information
         self.current_filename = f"transcript_{base_name}"
         self.current_folder = os.path.dirname(file_path)
         
-        # 更新進度條 (已完成 = 總數 - 剩餘)
+        # Update progress bar (completed = total - remaining)
         completed = self.total_batch_count - len(self.pending_files)
         self.batch_progress.setValue(completed)
         
         total_left = len(self.pending_files) + 1
-        self.status_label.setText(f"📂 批次處理中 (剩餘 {total_left} 個): {base_name}")
+        self.status_label.setText(f"📂 Batch processing in progress (remaining {total_left} files): {base_name}")
         
         self.file_thread = FileTranscriberThread(
             self.transcriber_thread.model, 
@@ -722,43 +722,43 @@ class TranscriptionTab(QWidget):
             self.recorder_thread.waveform_signal.connect(self.update_plot)
             self.recorder_thread.finished_signal.connect(self.process_audio)
             
-            # 防呆：鎖定匯入按鈕
+            # Foolproofing: Lock the Import button
             self.btn_import.setEnabled(False)
             self.recorder_thread.start()
             
-            self.btn_record.setText("🛑 停止錄製")
+            self.btn_record.setText("🛑 Stop Recording")
             self.btn_record.setStyleSheet("background-color: #e74c3c; color: white; font-size: 16px; font-weight: bold;")
-            self.status_label.setText(f"🔴 錄製中: {base_name}")
+            self.status_label.setText(f"🔴 Recording: {base_name}")
             self.text_area.clear()
         else:
             self.recorder_thread.running = False
             self.recorder_thread.quit()
             self.recorder_thread = None
             
-            # 恢復按鈕狀態
+            # Restore button states
             self.btn_import.setEnabled(True)
-            self.btn_record.setText("🎙️ 開始錄製")
+            self.btn_record.setText("🎙️ Start Recording")
             self.btn_record.setStyleSheet("font-size: 16px; font-weight: bold;")
-            self.status_label.setText("✅ 錄音結束，處理中...")
+            self.status_label.setText("✅ Recording finished, processing...")
 
     def save_transcript(self):
         content = self.text_area.toPlainText()
         if not content.strip(): 
-            QMessageBox.warning(self, "提示", "目前沒有內容可儲存。")
+            QMessageBox.warning(self, "Notice", "There is currently no content to save.")
             return
             
         default_path = os.path.join(self.current_folder, f"{self.current_filename}.txt")
-        file_path, _ = QFileDialog.getSaveFileName(self, "儲存檔案", default_path, "Text Files (*.txt)")
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save File", default_path, "Text Files (*.txt)")
         if file_path:
             with open(file_path, "w", encoding="utf-8") as f: f.write(content)
-            QMessageBox.information(self, "成功", f"逐字稿已儲存！\n{file_path}")
+            QMessageBox.information(self, "Success", f"Transcript saved successfully!\n{file_path}")
 
     @pyqtSlot(np.ndarray)
     def update_plot(self, data):
         data_len = len(data)
         plot_len = len(self.plot_data)
         
-        # 防呆：如果傳入的音訊片段比畫布還大，只取最後面的點
+        # Foolproofing: If the incoming audio segment is larger than the canvas, only take the last points
         if data_len >= plot_len:
             self.plot_data[:] = data[-plot_len:]
         else:

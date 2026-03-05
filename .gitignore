@@ -10,6 +10,7 @@
 !requirements.txt
 !README.md
 !LICENSE
+!img/
 
 # Keep .gitignore itself
 !.gitignore

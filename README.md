@@ -16,7 +16,7 @@ Designed for professional environments, this project features prompt-guided punc
 - **Project Lead**: Jason Chia-Sheng Lin (PhD. Student)
 - **Release Version**: `2.1.0` (Major Update)
 - **Versioning Strategy**: Semantic Versioning (MAJOR / MINOR / PATCH)
-![alt text](image.png)
+![alt text](./img/image.png)
 
 ---
 
@@ -42,7 +42,7 @@ This version introduces significant stability improvements, batch processing cap
 * **Advanced Settings Container**: A new foldable UI section allows customization of `Beam Size`, `Initial Prompt`, `Language`, and `Compute Type` (float16/int8).
 * **System Tray Integration**: The application can now minimize to the system tray, allowing long transcription tasks to run in the background without cluttering the taskbar.
 * **Auto-Update Checker**: Integrated `UpdateCheckerThread` to notify users of new releases available on GitHub.
-![alt text](image-1.png)
+![alt text](./img/image-1.png)
 
 ---
 

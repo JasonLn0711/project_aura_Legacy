@@ -1,22 +1,34 @@
-# Project AURA: Ultimate Audio Assistant (全方位錄音助理)
+# Project AURA: Ultimate Audio Assistant (Legacy Version)
 
-![CI Status](https://img.shields.io/badge/Status-Prototype-informational?logo=github) ![Python Version](https://img.shields.io/badge/Python-3.12.3-blue?logo=python) ![ASR Engine](https://img.shields.io/badge/ASR-faster--whisper-orange) ![UI](https://img.shields.io/badge/UI-PyQt6-9cf) ![VAD](https://img.shields.io/badge/VAD-WebRTC_VAD-success) ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Status](https://img.shields.io/badge/Status-Legacy-red?logo=github) ![Python Version](https://img.shields.io/badge/Python-3.12.3-blue?logo=python) ![ASR Engine](https://img.shields.io/badge/ASR-faster--whisper-orange) ![UI](https://img.shields.io/badge/UI-PyQt6-9cf) ![VAD](https://img.shields.io/badge/VAD-WebRTC_VAD-success) ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+
+## Project Status Update
+
+This Python-based prototype served as the initial proof-of-concept for the AURA system. Development has officially shifted to the Rust ecosystem to leverage strict memory management and high-performance concurrency—essential for our ongoing AI and Cybersecurity research at **National Yang Ming Chiao Tung University (NYCU)**.
+
+> [!WARNING]
+> **This project is now End-of-Life (EOL) and no longer maintained.**
+> To achieve superior security, higher performance, and memory safety, this project will be migrated to a **Rust** implementation.
+> 👉 **Please visit the new version:** [Aura-RS (Rust Implementation)](https://github.com/JasonLn0711/Aura-RS)
 
 ![alt text](./img/image.png)
+
 ## Executive Summary & Project Metadata
 
 **Project AURA** is a dual-core desktop assistant that integrates:
 
-1) **Real-time / file-based transcription** (ASR) with timestamped logs  
-2) **Smart audio splitting** that finds natural pause points to avoid cutting speech mid-sentence
+1. **Real-time / file-based transcription** (ASR) with timestamped logs
+2. **Smart audio splitting** that finds natural pause points to avoid cutting speech mid-sentence
 
 Designed for professional environments, this project features prompt-guided punctuation, background noise reduction, batch processing, and robust memory management for heavy AI workloads.
 
-- **Project Name**: Project AURA (Ultimate Audio Assistant)
-- **Academic Affiliation**: National Yang Ming Chiao Tung University (NYCU)
-- **Project Lead**: Jason Chia-Sheng Lin (PhD. Student)
-- **Release Version**: `2.1.0` (Major Update)
-- **Versioning Strategy**: Semantic Versioning (MAJOR / MINOR / PATCH)
+* **Project Name**: Project AURA (Ultimate Audio Assistant)
+* **Academic Affiliation**: National Yang Ming Chiao Tung University (NYCU)
+* **Project Lead**: Jason Chia-Sheng Lin (PhD. Student)
+* **Release Version**: `2.1.0` (Major Update)
+* **Release Date**: 2026-03-05
+* **Versioning Strategy**: Semantic Versioning (MAJOR / MINOR / PATCH)
+
 
 ---
 
@@ -49,7 +61,7 @@ This version introduces significant stability improvements, batch processing cap
 ## Feature Implementation Checklist
 
 | Feature Category | Implementation Details |
-| :--- | :--- |
+| --- | --- |
 | **Real-time Transcription** | Live microphone recording + streaming ASR via `faster-whisper`. |
 | **Batch Transcription** | Import multiple audio/video files with queue scheduling and progress tracking. |
 | **Real-Time Denoising** | `noisereduce` integration for spectral subtraction before ASR to ensure clean audio. |
@@ -184,6 +196,9 @@ python project_aura.py
 
 ## 7. Troubleshooting
 
+> [!IMPORTANT]
+> **This version is archived.** For any new issues, feature requests, or to experience the more secure and performant implementation, please refer to the **[Aura-RS](https://github.com/JasonLn0711/Aura-RS)** repository. The instructions below are kept for legacy reference only.
+ 
 ### 7.1 "Out of Memory" (OOM) Errors on GPU
 
 If the app crashes or throws an OOM error during model load or batch processing:
@@ -206,6 +221,6 @@ If your exported files are larger than the original:
 
 ## 8. License
 
-This project is licensed under the **MIT License**.
+This project is licensed under the [**MIT License**](./LICENSE).
 
 © 2026 Jason Chia-Sheng Lin (NYCU)

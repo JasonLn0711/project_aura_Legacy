@@ -372,7 +372,7 @@ class SmartSplitterThread(QThread):
             
             base_name = os.path.splitext(os.path.basename(self.file_path))[0]
             ext = os.path.splitext(self.file_path)[1].lower().replace(".", "")
-            if ext not in ["mp3", "wav", "m4a", "ogg", "flac"]:
+            if ext not in ["mp3", "wav", "m4a", "ogg", "flac", "aac", "wma", "aiff", "opus"]:
                 ext = "mp3" 
             
             current_pos = 0
@@ -423,7 +423,9 @@ class SmartSplitterThread(QThread):
 
     def export_chunk(self, chunk, base_name, index, ext, bitrate=None):
         out_path = os.path.join(self.output_dir, f"{base_name}_part{index:02d}.{ext}")
-        export_kwargs = {"format": ext}
+        # FFmpeg 針對 m4a 容器使用 'ipod' 名稱，aac 使用 'adts'
+        format_str = "ipod" if ext == "m4a" else ("adts" if ext == "aac" else ext)
+        export_kwargs = {"format": format_str}
         if ext == "mp3":
             # 如果有偵測到原始 bitrate 則使用，否則預設 192k
             target_bitrate = str(bitrate) if bitrate else "192k"
@@ -878,7 +880,7 @@ class SplitterTab(QWidget):
         layout.addWidget(self.log_area)
 
     def select_file(self):
-        path, _ = QFileDialog.getOpenFileName(self, "選擇要切割的音檔", "", "Audio/Video Files (*.mp3 *.wav *.m4a *.mp4 *.flac)")
+        path, _ = QFileDialog.getOpenFileName(self, "選擇要切割的音檔", "", "Audio/Video Files (*.mp3 *.wav *.m4a *.mp4 *.flac *.ogg *.aac *.mkv *.mov *.wma *.aiff *.opus)")
         if path:
             self.file_path = path
             self.output_dir = os.path.dirname(path)

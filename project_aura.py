@@ -23,12 +23,64 @@ import wave
 import requests
 import webbrowser
 import datetime
+from pathlib import Path
 import numpy as np
 import pyaudio
 import webrtcvad
 from concurrent.futures import ThreadPoolExecutor
 from ctypes import *
 from contextlib import contextmanager
+
+def preload_cuda_runtime_from_python_wheels():
+    py_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    project_root = Path(__file__).resolve().parent
+    candidate_roots = [
+        Path(sys.prefix) / "lib" / py_version / "site-packages",
+        project_root / ".record" / "lib" / py_version / "site-packages",
+    ]
+
+    lib_dirs = []
+    seen_dirs = set()
+    for root in candidate_roots:
+        for relative in ("nvidia/cublas/lib", "nvidia/cudnn/lib"):
+            lib_dir = root / relative
+            if lib_dir.exists():
+                lib_dir_str = str(lib_dir)
+                if lib_dir_str not in seen_dirs:
+                    lib_dirs.append(lib_dir)
+                    seen_dirs.add(lib_dir_str)
+
+    if lib_dirs:
+        existing_paths = [p for p in os.environ.get("LD_LIBRARY_PATH", "").split(":") if p]
+        for lib_dir in reversed(lib_dirs):
+            lib_dir_str = str(lib_dir)
+            if lib_dir_str in existing_paths:
+                existing_paths.remove(lib_dir_str)
+            existing_paths.insert(0, lib_dir_str)
+        os.environ["LD_LIBRARY_PATH"] = ":".join(existing_paths)
+
+    preload_targets = []
+    for lib_dir in lib_dirs:
+        if "cublas" in str(lib_dir):
+            preload_targets.extend([
+                lib_dir / "libcublasLt.so.12",
+                lib_dir / "libcublas.so.12",
+            ])
+        elif "cudnn" in str(lib_dir):
+            preload_targets.append(lib_dir / "libcudnn.so.9")
+            preload_targets.extend(sorted(lib_dir.glob("libcudnn_*.so.9")))
+
+    loaded_libs = []
+    for lib_path in preload_targets:
+        if lib_path.exists():
+            try:
+                CDLL(str(lib_path), mode=RTLD_GLOBAL)
+                loaded_libs.append(str(lib_path))
+            except OSError:
+                continue
+    return loaded_libs
+
+PRELOADED_CUDA_LIBS = preload_cuda_runtime_from_python_wheels()
 
 # Video & Audio Processing
 from pydub import AudioSegment
@@ -56,8 +108,32 @@ CHUNK_MS = 30
 CHUNK_SIZE = int(SAMPLE_RATE * CHUNK_MS / 1000)
 VAD_LEVEL = 3
 MODEL_ID = "SoybeanMilk/faster-whisper-Breeze-ASR-25"
-DEVICE = "cuda" 
-COMPUTE_TYPE = "float16" 
+
+def can_load_shared_library(lib_name):
+    try:
+        cdll.LoadLibrary(lib_name)
+        return True
+    except OSError:
+        return False
+
+def has_cuda_runtime():
+    return can_load_shared_library("libcublas.so.12")
+
+def is_missing_cuda_runtime_error(error_message):
+    msg = error_message.lower()
+    cuda_markers = (
+        "libcublas.so.12",
+        "libcudnn",
+        "cannot be loaded",
+        "cannot open shared object file",
+        "cuda failed with error",
+        "cublas",
+    )
+    return any(marker in msg for marker in cuda_markers)
+
+CUDA_RUNTIME_READY = has_cuda_runtime()
+DEVICE = "cuda" if CUDA_RUNTIME_READY else "cpu"
+COMPUTE_TYPE = "float16" if CUDA_RUNTIME_READY else "int8"
 
 ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
 def py_error_handler(filename, line, function, err, fmt):
@@ -81,9 +157,10 @@ def no_alsa_err():
 class FileTranscriberThread(QThread):
     text_updated = pyqtSignal(str)
     status_updated = pyqtSignal(str)
+    error_signal = pyqtSignal(str)
     finished_signal = pyqtSignal()
 
-    def __init__(self, model, file_path, target_dbfs=-20.0, beam_size=5, initial_prompt="", language="zh"):
+    def __init__(self, model, file_path, target_dbfs=-20.0, beam_size=5, initial_prompt="", language="zh", enable_denoise=False):
         super().__init__()
         self.model = model
         self.file_path = file_path
@@ -91,21 +168,57 @@ class FileTranscriberThread(QThread):
         self.beam_size = beam_size
         self.initial_prompt = initial_prompt
         self.language = language
+        self.enable_denoise = enable_denoise
+
+    def _denoise_audio_segment(self, audio):
+        """Apply noise reduction to each channel while keeping the original layout."""
+        audio = audio.set_sample_width(2)
+        samples = np.array(audio.get_array_of_samples(), dtype=np.int16)
+
+        if audio.channels > 1:
+            samples = samples.reshape((-1, audio.channels))
+            denoised_channels = []
+            for channel_idx in range(audio.channels):
+                denoised_channel = nr.reduce_noise(
+                    y=samples[:, channel_idx].astype(np.float32),
+                    sr=audio.frame_rate,
+                    stationary=True,
+                    prop_decrease=0.75
+                )
+                denoised_channels.append(denoised_channel)
+            denoised = np.stack(denoised_channels, axis=1)
+        else:
+            denoised = nr.reduce_noise(
+                y=samples.astype(np.float32),
+                sr=audio.frame_rate,
+                stationary=True,
+                prop_decrease=0.75
+            )
+
+        denoised = np.clip(denoised, -32768, 32767).astype(np.int16)
+        return audio._spawn(denoised.tobytes())
 
     def run(self):
         self.status_updated.emit("⏳ Analyzing audio file, please wait...")
         temp_path = None
         audio = None
         normalized = None
+        file_name = os.path.basename(self.file_path)
         try:
-            # 1. Pre-normalize Volume (Normalize)
-            self.status_updated.emit("🔊 Analyzing audio volume...")
+            # 1. Optional denoise for imported media
+            self.status_updated.emit(f"🔊 Preparing {file_name} for transcription...")
             audio = AudioSegment.from_file(self.file_path)
+            if self.enable_denoise:
+                self.status_updated.emit(f"🧹 Applying denoise to {file_name}...")
+                audio = self._denoise_audio_segment(audio)
+
+            # 2. Pre-normalize Volume
+            self.status_updated.emit(f"🔉 Normalizing volume for {file_name}...")
             normalized = audio.apply_gain(self.target_dbfs - audio.dBFS)
             temp_path = os.path.join(os.getcwd(), "temp_normalized.wav")
             normalized.export(temp_path, format="wav")
 
-                # faster-whisper natively supports direct reading of common media files
+            # faster-whisper natively supports direct reading of common media files
             segments, info = self.model.transcribe(
                 temp_path,
                 beam_size=self.beam_size, 
@@ -125,9 +238,24 @@ class FileTranscriberThread(QThread):
                 # Auto-backup
                 with open("temp_transcript.txt", "a", encoding="utf-8") as f:
                     f.write(formatted_text + "\n")
-            self.status_updated.emit("✅ File processing completed!")
+            self.status_updated.emit(f"✅ Finished transcribing {file_name}")
         except Exception as e:
-            self.status_updated.emit(f"❌ File processing failed: {e}")
+            error_msg = str(e)
+            lower_msg = error_msg.lower()
+            if is_missing_cuda_runtime_error(error_msg):
+                error_msg = (
+                    "CUDA runtime is incomplete on this machine.\n"
+                    "The app tried to use the GPU model, but `libcublas.so.12` is missing.\n\n"
+                    "Quick fix: open Advanced Settings, choose `int8`, click Reload Model, "
+                    "then import the file again."
+                )
+            elif "ffmpeg" in lower_msg or "ffprobe" in lower_msg:
+                error_msg = (
+                    f"{error_msg}\n\nImported media decoding depends on ffmpeg/ffprobe. "
+                    "Please install them and try again."
+                )
+            self.status_updated.emit(f"❌ Failed to transcribe {file_name}")
+            self.error_signal.emit(f"{file_name}\n\n{error_msg}")
         finally:
             if temp_path and os.path.exists(temp_path):
                 os.remove(temp_path)
@@ -148,18 +276,45 @@ class ModelLoaderThread(QThread):
         super().__init__()
         self.device = device
         self.compute_type = compute_type
+        self.loaded_device = device
+        self.loaded_compute_type = compute_type
 
     def run(self):
         try:
-            self.status_signal.emit(f"🚀 Loading model in background ({self.device}/{self.compute_type})...")
+            target_device = self.device
+            target_compute = self.compute_type
+
+            if target_device == "cuda" and not has_cuda_runtime():
+                self.status_signal.emit("⚠️ CUDA runtime not found. Falling back to CPU/int8...")
+                target_device = "cpu"
+                target_compute = "int8"
+
+            self.status_signal.emit(f"🚀 Loading model in background ({target_device}/{target_compute})...")
             # Execute time-consuming model initialization
-            model = WhisperModel(MODEL_ID, device=self.device, compute_type=self.compute_type)
+            try:
+                model = WhisperModel(MODEL_ID, device=target_device, compute_type=target_compute)
+            except Exception as e:
+                if target_device == "cuda" and is_missing_cuda_runtime_error(str(e)):
+                    self.status_signal.emit("⚠️ GPU libraries are incomplete. Retrying with CPU/int8...")
+                    target_device = "cpu"
+                    target_compute = "int8"
+                    model = WhisperModel(MODEL_ID, device=target_device, compute_type=target_compute)
+                else:
+                    raise
+
+            self.loaded_device = target_device
+            self.loaded_compute_type = target_compute
             self.finished_signal.emit(model)
         except Exception as e:
             # Capture potential CUDA out-of-memory or driver issues
             error_msg = str(e)
             if "out of memory" in error_msg.lower():
                 error_msg = "Insufficient GPU memory. Try switching to int8 precision or closing other programs."
+            elif is_missing_cuda_runtime_error(error_msg):
+                error_msg = (
+                    "CUDA runtime libraries are missing. `libcublas.so.12` could not be loaded.\n\n"
+                    "Use CPU mode by selecting `int8`, or install the CUDA 12 runtime libraries."
+                )
             self.error_signal.emit(error_msg)
 
 class UpdateCheckerThread(QThread):
@@ -216,6 +371,11 @@ class TranscriberThread(QThread):
             except queue.Empty:
                 continue
             except Exception as e:
+                error_msg = str(e)
+                if is_missing_cuda_runtime_error(error_msg):
+                    self.status_updated.emit("❌ CUDA runtime missing. Reload the model with CPU/int8.")
+                else:
+                    self.status_updated.emit(f"❌ Transcription error: {error_msg}")
                 print(f"Transcription error: {e}")
 
     def add_audio(self, audio_np):
@@ -459,7 +619,7 @@ class TranscriptionTab(QWidget):
         layout = QVBoxLayout(self)
         
         info_layout = QHBoxLayout()
-        self.status_label = QLabel("Status: Waiting for GPU initialization...")
+        self.status_label = QLabel("Status: Waiting for model initialization...")
         self.status_label.setStyleSheet("font-weight: bold; color: #00bcd4; font-size: 14px;")
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("Recording filename suffix")
@@ -481,9 +641,9 @@ class TranscriptionTab(QWidget):
 
         # 6. Real-time Denoise Switch
         denoise_layout = QHBoxLayout()
-        self.chk_denoise = QCheckBox("Enable Real-time Denoise")
+        self.chk_denoise = QCheckBox("Enable Denoise (Recording + Import)")
         self.chk_denoise.setChecked(False) # Default off to preserve original quality
-        self.chk_denoise.setToolTip("Recommended for noisy environments; keep off in quiet environments to preserve detail")
+        self.chk_denoise.setToolTip("Applies noise reduction to live recording and imported media. Keep off in quiet environments to preserve detail.")
         denoise_layout.addWidget(self.chk_denoise)
         denoise_layout.addStretch()
         settings_vbox.addLayout(denoise_layout)
@@ -535,6 +695,9 @@ class TranscriptionTab(QWidget):
         self.combo_compute.addItem("float16 (GPU Recommended)", "float16")
         self.combo_compute.addItem("int8 (CPU Accel/Save Memory)", "int8")
         self.combo_compute.addItem("float32 (High Precision)", "float32")
+        default_compute_index = self.combo_compute.findData(COMPUTE_TYPE)
+        if default_compute_index >= 0:
+            self.combo_compute.setCurrentIndex(default_compute_index)
         model_settings_layout.addWidget(self.combo_compute)
         
         self.btn_reload_model = QPushButton("🔄 Reload Model")
@@ -569,7 +732,7 @@ class TranscriptionTab(QWidget):
         self.btn_record.setFixedHeight(50)
         self.btn_record.setStyleSheet("font-size: 16px; font-weight: bold;")
         
-        self.btn_import = QPushButton("📁 Import Audio/Video for Transcription")
+        self.btn_import = QPushButton("📁 Import Audio/Video and Start Transcription")
         self.btn_import.clicked.connect(self.import_file)
         self.btn_import.setFixedHeight(50)
         
@@ -581,6 +744,11 @@ class TranscriptionTab(QWidget):
         btn_layout.addWidget(self.btn_import, stretch=2)
         btn_layout.addWidget(self.btn_save_txt, stretch=1)
         layout.addLayout(btn_layout)
+
+        self.batch_hint = QLabel("Imported files begin batch transcription automatically. No separate ASR start button is required.")
+        self.batch_hint.setWordWrap(True)
+        self.batch_hint.setStyleSheet("color: #9e9e9e; font-size: 12px;")
+        layout.addWidget(self.batch_hint)
 
         # Use async loading on initial startup (must be called after UI component initialization)
         self.apply_model_settings()
@@ -616,7 +784,12 @@ class TranscriptionTab(QWidget):
             return
 
         # Changed to support multi-selection
-        files, _ = QFileDialog.getOpenFileNames(self, "Select Media Files", "", "Media Files (*.mp4 *.m4a *.mp3 *.wav *.flac *.mkv)")
+        files, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Select Media Files",
+            "",
+            "Media Files (*.mp4 *.m4a *.mp3 *.wav *.flac *.mkv *.mov *.webm *.avi *.aac *.ogg *.opus)"
+        )
         if files:
             self.pending_files.extend(files)
             # Initialize progress bar
@@ -624,6 +797,9 @@ class TranscriptionTab(QWidget):
             self.batch_progress.setMaximum(self.total_batch_count)
             self.batch_progress.setValue(0)
             self.batch_progress.setVisible(True)
+            self.status_label.setText(
+                f"📥 Queued {len(files)} file(s). Batch transcription starts automatically..."
+            )
             
             self.btn_record.setEnabled(False)
             self.btn_import.setEnabled(False)
@@ -656,7 +832,13 @@ class TranscriptionTab(QWidget):
         self.transcriber_thread.model = new_model
         self.btn_reload_model.setEnabled(True)
         self.btn_reload_model.setText("🔄 Reload Model")
-        self.status_label.setText(f"✅ Model is ready ({self.combo_compute.currentText()})")
+        actual_device = getattr(self.model_loader, "loaded_device", DEVICE)
+        actual_compute = getattr(self.model_loader, "loaded_compute_type", self.combo_compute.currentData())
+        compute_index = self.combo_compute.findData(actual_compute)
+        if compute_index >= 0 and compute_index != self.combo_compute.currentIndex():
+            self.combo_compute.setCurrentIndex(compute_index)
+        device_label = "GPU" if actual_device == "cuda" else "CPU"
+        self.status_label.setText(f"✅ Model is ready ({device_label}/{actual_compute})")
 
     @pyqtSlot(str)
     def on_model_error(self, err_msg):
@@ -694,10 +876,12 @@ class TranscriptionTab(QWidget):
             target_dbfs=float(self.spin_norm.value()),
             beam_size=self.spin_beam.value(),
             initial_prompt=self.prompt_input.text(),
-            language=self.combo_lang.currentData()
+            language=self.combo_lang.currentData(),
+            enable_denoise=self.chk_denoise.isChecked()
         )
         self.file_thread.text_updated.connect(self.update_log)
         self.file_thread.status_updated.connect(self.update_status_only)
+        self.file_thread.error_signal.connect(self.on_file_transcription_error)
         self.file_thread.finished_signal.connect(self.process_next_file) # Recursive call to process next
         self.file_thread.start()
 
@@ -777,6 +961,10 @@ class TranscriptionTab(QWidget):
     @pyqtSlot(str)
     def update_status_only(self, text):
         self.status_label.setText(text)
+
+    @pyqtSlot(str)
+    def on_file_transcription_error(self, error_text):
+        QMessageBox.warning(self, "Batch transcription failed", error_text)
 
     @pyqtSlot(str)
     def process_audio(self, wav_path):

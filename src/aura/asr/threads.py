@@ -11,6 +11,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 from aura.audio.denoise import reduce_audio_segment_noise
 from aura.config import COMPUTE_TYPE, DEFAULT_LIVE_PROMPT, DEFAULT_PROMPT, DEVICE, MODEL_ID
 from aura.system.cuda import is_cuda_runtime_error, preload_cuda_runtime_libraries
+from aura.system.runtime_paths import append_transcript_backup, temp_normalized_path
 
 
 def resolve_initial_prompt(prompt, default_prompt):
@@ -56,6 +57,14 @@ class FileTranscriberThread(QThread):
         self.initial_prompt = resolve_initial_prompt(initial_prompt, DEFAULT_PROMPT)
         self.language = language
         self.enable_denoise = enable_denoise
+        self.cancel_requested = False
+
+    def request_cancel(self):
+        self.cancel_requested = True
+
+    def _raise_if_cancelled(self):
+        if self.cancel_requested:
+            raise RuntimeError("File transcription cancelled.")
 
     def run(self):
         self.status_updated.emit("⏳ Analyzing audio file, please wait...")
@@ -65,18 +74,22 @@ class FileTranscriberThread(QThread):
         file_name = os.path.basename(self.file_path)
         try:
             self.status_updated.emit(f"🔊 Preparing {file_name} for transcription...")
+            self._raise_if_cancelled()
             audio = AudioSegment.from_file(self.file_path)
             if self.enable_denoise:
                 self.status_updated.emit(f"🧹 Applying denoise to {file_name}...")
+                self._raise_if_cancelled()
                 audio = reduce_audio_segment_noise(audio)
 
             self.status_updated.emit(f"🔉 Normalizing volume for {file_name}...")
+            self._raise_if_cancelled()
             normalized = audio.apply_gain(self.target_dbfs - audio.dBFS)
-            temp_path = os.path.join(os.getcwd(), "temp_normalized.wav")
-            normalized.export(temp_path, format="wav")
+            temp_path = temp_normalized_path(id(self))
+            normalized.export(str(temp_path), format="wav")
 
+            self._raise_if_cancelled()
             segments, info = self.model.transcribe(
-                temp_path,
+                str(temp_path),
                 **build_transcribe_kwargs(
                     beam_size=self.beam_size,
                     language=self.language,
@@ -91,10 +104,11 @@ class FileTranscriberThread(QThread):
                 timestamp = f"{h:02d}:{m:02d}:{s:02d}"
                 formatted_text = f"[{timestamp}] {segment.text}"
                 self.text_updated.emit(formatted_text)
-
-                with open("temp_transcript.txt", "a", encoding="utf-8") as f:
-                    f.write(formatted_text + "\n")
-            self.status_updated.emit(f"✅ Finished transcribing {file_name}")
+                append_transcript_backup(formatted_text)
+            if self.cancel_requested:
+                self.status_updated.emit(f"⚠️ Cancelled transcribing {file_name}")
+            else:
+                self.status_updated.emit(f"✅ Finished transcribing {file_name}")
         except Exception as e:
             error_msg = str(e)
             lower_msg = error_msg.lower()
@@ -110,8 +124,11 @@ class FileTranscriberThread(QThread):
                     f"{error_msg}\n\nImported media decoding depends on ffmpeg/ffprobe. "
                     "Please install them and try again."
                 )
-            self.status_updated.emit(f"❌ Failed to transcribe {file_name}")
-            self.error_signal.emit(f"{file_name}\n\n{error_msg}")
+            if self.cancel_requested:
+                self.status_updated.emit(f"⚠️ Cancelled transcribing {file_name}")
+            else:
+                self.status_updated.emit(f"❌ Failed to transcribe {file_name}")
+                self.error_signal.emit(f"{file_name}\n\n{error_msg}")
         finally:
             if temp_path and os.path.exists(temp_path):
                 os.remove(temp_path)
@@ -219,8 +236,7 @@ class TranscriberThread(QThread):
                     timestamp = datetime.datetime.now().strftime("%H:%M:%S")
                     formatted_text = f"[{timestamp}] {text_segment}"
                     self.text_updated.emit(formatted_text)
-                    with open("temp_transcript.txt", "a", encoding="utf-8") as f:
-                        f.write(formatted_text + "\n")
+                    append_transcript_backup(formatted_text)
             except queue.Empty:
                 continue
             except Exception as e:

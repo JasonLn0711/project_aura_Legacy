@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 
 from aura.metadata import __author__, __organization__, __version__
+from aura.system.runtime_paths import remove_transcript_backup
 from aura.ui.splitter_tab import SplitterTab
 from aura.ui.transcription_tab import TranscriptionTab
 
@@ -102,8 +103,7 @@ class MainWindow(QMainWindow):
         except ImportError:
             pass
 
-        if os.path.exists("temp_transcript.txt"):
-            os.remove("temp_transcript.txt")
+        remove_transcript_backup()
 
     def closeEvent(self, event):
         if self.tray_icon.isVisible():

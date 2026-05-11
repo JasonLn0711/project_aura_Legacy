@@ -419,4 +419,5 @@ class TranscriptionTab(QWidget):
         if self.recorder_thread:
             self.recorder_thread.running = False
         if self.file_thread and self.file_thread.isRunning():
-            self.file_thread.terminate()
+            self.file_thread.request_cancel()
+            self.file_thread.wait(2000)

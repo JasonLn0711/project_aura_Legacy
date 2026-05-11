@@ -22,8 +22,8 @@ Use this sibling repository as the new maintainable Python codebase. Keep `recor
    - Add import smoke tests for all modules.
 
 3. Runtime hardening
-   - Replace `terminate()` on file worker shutdown with cooperative cancellation.
-   - Move temp files into a configurable runtime directory.
+   - Replace `terminate()` on file worker shutdown with cooperative cancellation. Done in `src/aura/asr/threads.py` and `src/aura/ui/transcription_tab.py`.
+   - Move temp files into a configurable runtime directory. Done with `AURA_RUNTIME_DIR` support in `src/aura/system/runtime_paths.py`.
    - Add structured logging instead of `print()`.
 
 4. UI cleanup

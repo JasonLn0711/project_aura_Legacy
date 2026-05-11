@@ -194,6 +194,22 @@ The packaged entrypoints are defined in `pyproject.toml`:
 | Target Volume | `-20 dBFS` |
 | Denoise | Off in UI by default |
 
+## Runtime Files
+
+Temporary transcription files are written outside the source tree by default:
+
+```text
+/tmp/project_aura/
+```
+
+Set `AURA_RUNTIME_DIR` to override this location:
+
+```bash
+export AURA_RUNTIME_DIR=/path/to/runtime
+```
+
+The runtime directory stores transient normalized WAV files and the live transcript backup. It is not intended for permanent recordings or final transcript exports.
+
 ## Default Prompt Behavior
 
 The default file-transcription prompt is:
@@ -243,6 +259,7 @@ Current coverage includes:
 - short-buffer denoise stability
 - silence denoise bypass
 - synthetic signal preservation smoke check
+- runtime temp path and backup cleanup behavior
 - default prompt behavior for batch and live ASR
 - transcribe keyword construction for language and prompt handling
 

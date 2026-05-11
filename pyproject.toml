@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "project-aura-refactor"
+version = "1.5.0"
+description = "Refactored Project AURA desktop audio transcription and splitting tool."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Jason Chia-Sheng Lin" }
+]
+dependencies = [
+  "faster-whisper>=1.2.1",
+  "noisereduce>=3.0.3",
+  "numpy>=2.0",
+  "pyaudio>=0.2.14",
+  "pydub>=0.25.1",
+  "pyqt6>=6.10",
+  "pyqtgraph>=0.14",
+  "qt-material>=2.17",
+  "requests>=2.32",
+  "webrtcvad>=2.0.10",
+]
+
+[project.scripts]
+aura = "aura.app:main"
+project-aura = "aura.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

@@ -1,0 +1,30 @@
+.venv/
+.record/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Runtime artifacts
+temp_transcript.txt
+temp_normalized.wav
+outputs/
+recordings/
+*.wav
+*.mp3
+*.m4a
+*.mp4
+*.mkv
+*.webm
+*.flac
+*.ogg
+*.opus
+*.aac
+*.wma
+*.aiff
+
+# Local machine state
+.env
+.env.*
+*.log

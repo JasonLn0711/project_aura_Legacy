@@ -30,6 +30,7 @@ Use this sibling repository as the new maintainable Python codebase. Keep `recor
 4. Pipeline extraction
    - Extract file import/transcription logic from `FileTranscriberThread` into `src/aura/asr/file_pipeline.py`. Done; the Qt class now wraps the service and emits UI signals.
    - Extract recorded WAV normalization/export from the transcription UI into `src/aura/audio/export.py`. Done; tests cover output path, MP3 creation, and source WAV cleanup.
+   - Move GitHub release-check repository identity into config. Done with `GITHUB_REPOSITORY` and `latest_release_api_url()`.
 
 5. UI cleanup
    - Move display strings into a localization layer.

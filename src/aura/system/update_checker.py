@@ -1,7 +1,12 @@
 import requests
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from aura.config import GITHUB_REPOSITORY
 from aura.metadata import __version__
+
+
+def latest_release_api_url(repository: str = GITHUB_REPOSITORY) -> str:
+    return f"https://api.github.com/repos/{repository}/releases/latest"
 
 
 class UpdateCheckerThread(QThread):
@@ -11,8 +16,7 @@ class UpdateCheckerThread(QThread):
 
     def run(self):
         try:
-            repo_url = "https://api.github.com/repos/JasonLin/UltimateAudioAssistant/releases/latest"
-            response = requests.get(repo_url, timeout=3)
+            response = requests.get(latest_release_api_url(), timeout=3)
             if response.status_code == 200:
                 data = response.json()
                 latest_ver = data["tag_name"].lstrip("v")

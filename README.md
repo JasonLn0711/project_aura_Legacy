@@ -43,6 +43,7 @@ The app is designed for professional meeting and lecture workflows. It includes 
 | Project Name | Project AURA / Ultimate Audio Assistant |
 | Refactor Version | `1.5.0` |
 | ASR Model | `SoybeanMilk/faster-whisper-Breeze-ASR-25` |
+| GitHub Repository | `JasonLn0711/project_aura` |
 | Academic Affiliation | National Yang Ming Chiao Tung University (NYCU) |
 | Project Lead | Jason Chia-Sheng Lin (PhD. Student) |
 | License | MIT |

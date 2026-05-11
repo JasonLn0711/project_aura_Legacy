@@ -23,7 +23,15 @@ jobs:
       - name: Install system packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y portaudio19-dev python3-dev ffmpeg
+          sudo apt-get install -y \
+            ffmpeg \
+            libegl1 \
+            libgl1 \
+            libxcb-cursor0 \
+            libxcb-xinerama0 \
+            libxkbcommon-x11-0 \
+            portaudio19-dev \
+            python3-dev
 
       - name: Install package
         run: |
@@ -34,4 +42,6 @@ jobs:
         run: python -m compileall src tests
 
       - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: PYTHONPATH=src python -m unittest discover -s tests

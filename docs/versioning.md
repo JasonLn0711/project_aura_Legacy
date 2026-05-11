@@ -1,0 +1,65 @@
+# Versioning Rule
+
+Project AURA uses strict semantic versioning for release tags and package metadata.
+
+## Canonical Version Format
+
+- Use `MAJOR.MINOR.PATCH` inside source files, for example `1.5.0`.
+- Use `vMAJOR.MINOR.PATCH` only for Git tags and GitHub release names, for example `v1.5.0`.
+- Never put the leading `v` inside `pyproject.toml` or `src/aura/metadata.py`.
+- Do not update the legacy audit file `docs/legacy_audio_assistant_v1.5.0.py` for new releases. It is a historical baseline, not active source.
+
+## Required Files For Every Version Bump
+
+Every release version bump must update these files in the same commit:
+
+- `pyproject.toml`: `[project].version`
+- `src/aura/metadata.py`: `__version__`
+- `README.md`: `Refactor Version` table row
+
+If any of these three values differ, the release is invalid.
+
+## Release Commit Rule
+
+Use one dedicated version commit after all feature/fix commits are already merged:
+
+```bash
+git status --short --branch
+make check PYTHON=/path/to/python
+make build PYTHON=/path/to/python
+```
+
+Then update the required version files and commit:
+
+```bash
+git add pyproject.toml src/aura/metadata.py README.md
+git commit -m "bump version to vX.Y.Z"
+```
+
+The commit message must use the tagged form, for example:
+
+```text
+bump version to v1.5.0
+```
+
+## Tagging Rule
+
+Create the Git tag only after the version commit passes checks:
+
+```bash
+make check PYTHON=/path/to/python
+make build PYTHON=/path/to/python
+git tag -a vX.Y.Z -m "Project AURA vX.Y.Z"
+git push origin main
+git push origin vX.Y.Z
+```
+
+Never tag a dirty working tree. Never reuse an existing version tag.
+
+## Version Increment Rule
+
+- Patch bump, for example `v1.5.0` to `v1.5.1`: bug fixes, docs corrections, test-only improvements, packaging fixes.
+- Minor bump, for example `v1.5.0` to `v1.6.0`: new user-visible features, new UI controls, new runtime configuration behavior.
+- Major bump, for example `v1.5.0` to `v2.0.0`: incompatible workflow changes, removed features, changed output formats, or migration-required architecture changes.
+
+When unsure, choose the smaller valid bump only if the user workflow remains compatible.

@@ -43,3 +43,4 @@ Use this sibling repository as the new maintainable Python codebase. Keep `recor
 6. Packaging
    - Add release commands. Done with `Makefile` targets for `check`, `test`, `compile`, `build`, and `clean`, plus README release-build instructions.
    - Add CI checks for compile, tests, and formatting. Compile and unit-test CI is now in `.github/workflows/ci.yml`; formatting/linting can be added after adopting a formatter.
+   - Add strict version-bump rules. Done in `docs/versioning.md`; tests now verify that `pyproject.toml`, `src/aura/metadata.py`, and the README refactor version stay synchronized.

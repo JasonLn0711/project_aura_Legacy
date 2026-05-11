@@ -77,7 +77,8 @@ project_aura_refactor/
 ├── docs/
 │   ├── architecture_decisions.md
 │   ├── legacy_audio_assistant_v1.5.0.py
-│   └── refactor_plan.md
+│   ├── refactor_plan.md
+│   └── versioning.md
 ├── img/
 │   ├── image.png
 │   └── image-1.png
@@ -313,6 +314,8 @@ Before tagging or publishing a release, run:
 ```bash
 make check PYTHON=/path/to/python
 ```
+
+Version bumps must follow the strict rule in [`docs/versioning.md`](docs/versioning.md): update `pyproject.toml`, `src/aura/metadata.py`, and the README `Refactor Version` in one dedicated version commit, then tag with the leading-`v` form such as `v1.5.0`.
 
 ## Troubleshooting
 

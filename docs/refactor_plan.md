@@ -19,7 +19,7 @@ Use this sibling repository as the new maintainable Python codebase. Keep `recor
 2. Regression tests
    - Cover denoise short-buffer handling.
    - Add splitter tests using tiny synthetic audio fixtures. Done; tests cover extension fallback, export format mapping, silence cut selection, final short-segment export, progress callbacks, and invalid target rejection.
-   - Add import smoke tests for all modules.
+   - Add import smoke tests for all modules. Done; `tests/test_imports.py` walks the `aura` package and imports each module.
    - File transcription pipeline tests now cover segment formatting, temp cleanup, cancellation, error guidance, and model kwargs.
 
 3. Runtime hardening

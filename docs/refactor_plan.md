@@ -18,7 +18,7 @@ Use this sibling repository as the new maintainable Python codebase. Keep `recor
 
 2. Regression tests
    - Cover denoise short-buffer handling.
-   - Add splitter tests using tiny synthetic audio fixtures.
+   - Add splitter tests using tiny synthetic audio fixtures. Done; tests cover extension fallback, export format mapping, silence cut selection, final short-segment export, progress callbacks, and invalid target rejection.
    - Add import smoke tests for all modules.
    - File transcription pipeline tests now cover segment formatting, temp cleanup, cancellation, error guidance, and model kwargs.
 
@@ -30,6 +30,7 @@ Use this sibling repository as the new maintainable Python codebase. Keep `recor
 4. Pipeline extraction
    - Extract file import/transcription logic from `FileTranscriberThread` into `src/aura/asr/file_pipeline.py`. Done; the Qt class now wraps the service and emits UI signals.
    - Extract recorded WAV normalization/export from the transcription UI into `src/aura/audio/export.py`. Done; tests cover output path, MP3 creation, and source WAV cleanup.
+   - Extract smart audio splitting from `SmartSplitterThread` into `src/aura/audio/splitter_pipeline.py`. Done; the Qt class now delegates to the service and only emits UI signals.
    - Move GitHub release-check repository identity into config. Done with `GITHUB_REPOSITORY` and `latest_release_api_url()`.
 
 5. UI cleanup

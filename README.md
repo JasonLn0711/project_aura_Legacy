@@ -91,7 +91,8 @@ project_aura_refactor/
 │   │   ├── capture.py            # PyAudio/PulseAudio recording thread
 │   │   ├── denoise.py            # Safe noisereduce wrapper
 │   │   ├── export.py             # Recording normalization/export helpers
-│   │   └── splitter.py           # Smart audio splitting thread
+│   │   ├── splitter.py           # Thin Qt wrapper for smart audio splitting
+│   │   └── splitter_pipeline.py  # Testable split-point detection and export service
 │   ├── system/
 │   │   ├── cuda.py               # CUDA runtime preload and fallback detection
 │   │   ├── native_audio.py       # ALSA/JACK stderr suppression helpers
@@ -113,6 +114,7 @@ project_aura_refactor/
 - Runtime outputs are ignored without hiding source files.
 - The app source is importable and testable as a package.
 - File import transcription is extracted into a testable pipeline service outside the Qt thread.
+- Smart audio splitting is extracted into a testable pipeline service outside the Qt thread.
 
 ## Environment Requirements
 

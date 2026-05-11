@@ -18,10 +18,13 @@ class UIStrings:
     recording_suffix_placeholder: str = "Recording filename suffix"
     show_advanced_settings: str = "▶ Show Advanced Settings"
     hide_advanced_settings: str = "▼ Hide Advanced Settings"
-    denoise_label: str = "Enable Denoise (Recording + Import)"
+    denoise_mode_label: str = "Denoise Mode:"
+    denoise_off: str = "Off - preserve original audio"
+    denoise_light: str = "Light - normal room noise"
+    denoise_medium: str = "Medium - stronger noise reduction"
     denoise_tooltip: str = (
-        "Applies noise reduction to live recording and imported media. "
-        "Keep off in quiet environments to preserve detail."
+        "Applies noise reduction to live recording and imported media before ASR. "
+        "Use Off in quiet environments; stronger modes may remove speech detail."
     )
     target_volume_label: str = "Target Volume Normalization (dBFS):"
     beam_size_label: str = "Beam Size (Recommended: 5):"

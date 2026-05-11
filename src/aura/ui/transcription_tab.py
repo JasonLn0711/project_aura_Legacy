@@ -9,7 +9,6 @@ import numpy as np
 import pyqtgraph as pg
 from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QComboBox,
     QFileDialog,
     QHBoxLayout,
@@ -25,7 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from aura.asr.threads import FileTranscriberThread, ModelLoaderThread, TranscriberThread
-from aura.audio.denoise import normalize_denoise_preset
+from aura.audio.denoise import DEFAULT_ACTIVE_DENOISE_PRESET, OFF_DENOISE_PRESET, normalize_denoise_preset
 from aura.audio.capture import AudioRecorderThread
 from aura.audio.export import normalize_wav_to_mp3
 from aura.settings import DEFAULT_SETTINGS
@@ -82,10 +81,16 @@ class TranscriptionTab(QWidget):
         settings_vbox = QVBoxLayout(self.settings_container)
 
         denoise_layout = QHBoxLayout()
-        self.chk_denoise = QCheckBox(self.strings.denoise_label)
-        self.chk_denoise.setChecked(self.settings.denoise_enabled)
-        self.chk_denoise.setToolTip(self.strings.denoise_tooltip)
-        denoise_layout.addWidget(self.chk_denoise)
+        denoise_layout.addWidget(QLabel(self.strings.denoise_mode_label))
+        self.combo_denoise = QComboBox()
+        self.combo_denoise.setToolTip(self.strings.denoise_tooltip)
+        self.combo_denoise.addItem(self.strings.denoise_off, OFF_DENOISE_PRESET)
+        self.combo_denoise.addItem(self.strings.denoise_light, DEFAULT_ACTIVE_DENOISE_PRESET)
+        self.combo_denoise.addItem(self.strings.denoise_medium, "medium")
+        denoise_preset = normalize_denoise_preset(self.settings.denoise_enabled, self.settings.denoise_preset)
+        denoise_index = self.combo_denoise.findData(denoise_preset)
+        self.combo_denoise.setCurrentIndex(denoise_index if denoise_index >= 0 else 0)
+        denoise_layout.addWidget(self.combo_denoise)
         denoise_layout.addStretch()
         settings_vbox.addLayout(denoise_layout)
 
@@ -238,7 +243,13 @@ class TranscriptionTab(QWidget):
                 self.process_next_file()
 
     def selected_denoise_preset(self) -> str:
-        return normalize_denoise_preset(self.chk_denoise.isChecked(), self.settings.denoise_preset)
+        return normalize_denoise_preset(
+            enable_denoise=self.combo_denoise.currentData() != OFF_DENOISE_PRESET,
+            preset=self.combo_denoise.currentData(),
+        )
+
+    def denoise_enabled(self) -> bool:
+        return self.selected_denoise_preset() != OFF_DENOISE_PRESET
 
     def apply_model_settings(self):
         if self.model_loader and self.model_loader.isRunning():
@@ -309,7 +320,7 @@ class TranscriptionTab(QWidget):
             beam_size=self.spin_beam.value(),
             initial_prompt=self.prompt_input.text(),
             language=self.combo_lang.currentData(),
-            enable_denoise=self.chk_denoise.isChecked(),
+            enable_denoise=self.denoise_enabled(),
             denoise_preset=self.selected_denoise_preset(),
         )
         self.file_thread.text_updated.connect(self.update_log)
@@ -346,7 +357,7 @@ class TranscriptionTab(QWidget):
             self.recorder_thread = AudioRecorderThread(
                 full_path,
                 self.transcriber_thread,
-                enable_denoise=self.chk_denoise.isChecked(),
+                enable_denoise=self.denoise_enabled(),
                 denoise_preset=self.selected_denoise_preset(),
             )
             self.recorder_thread.waveform_signal.connect(self.update_plot)

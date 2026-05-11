@@ -42,6 +42,7 @@ The app is designed for professional meeting and lecture workflows. It includes 
 | --- | --- |
 | Project Name | Project AURA / Ultimate Audio Assistant |
 | Refactor Version | `1.5.1` |
+| Current Release Tag | `v1.5.1` |
 | ASR Model | `SoybeanMilk/faster-whisper-Breeze-ASR-25` |
 | GitHub Repository | `JasonLn0711/project_aura` |
 | Academic Affiliation | National Yang Ming Chiao Tung University (NYCU) |
@@ -315,7 +316,7 @@ Before tagging or publishing a release, run:
 make check PYTHON=/path/to/python
 ```
 
-Version bumps must follow the strict rule in [`docs/versioning.md`](docs/versioning.md): update `pyproject.toml`, `src/aura/metadata.py`, and the README `Refactor Version` in one dedicated version commit, then tag with the leading-`v` form such as `v1.5.0`.
+Version bumps must follow the strict rule in [`docs/versioning.md`](docs/versioning.md): update `pyproject.toml`, `src/aura/metadata.py`, and the README `Refactor Version` in one dedicated version commit, then tag with the leading-`v` form such as `vX.Y.Z`.
 
 ## Troubleshooting
 

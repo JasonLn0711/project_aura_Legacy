@@ -1,40 +1,26 @@
 import datetime
-import gc
 import logging
 import os
 import queue
 import time
 
 from faster_whisper import WhisperModel
-from pydub import AudioSegment
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from aura.audio.denoise import reduce_audio_segment_noise
-from aura.config import COMPUTE_TYPE, DEFAULT_LIVE_PROMPT, DEFAULT_PROMPT, DEVICE, MODEL_ID
+from aura.asr.file_pipeline import (
+    CancellationToken,
+    FileTranscriptionCancelled,
+    FileTranscriptionSettings,
+    build_transcribe_kwargs,
+    normalize_file_transcription_error,
+    resolve_initial_prompt,
+    transcribe_file,
+)
+from aura.config import COMPUTE_TYPE, DEFAULT_LIVE_PROMPT, DEVICE, MODEL_ID
 from aura.system.cuda import is_cuda_runtime_error, preload_cuda_runtime_libraries
-from aura.system.runtime_paths import append_transcript_backup, temp_normalized_path
+from aura.system.runtime_paths import append_transcript_backup
 
 logger = logging.getLogger(__name__)
-
-
-def resolve_initial_prompt(prompt, default_prompt):
-    """Use the default prompt only when the caller did not provide a value."""
-    if prompt is None:
-        return default_prompt
-    return str(prompt).strip()
-
-
-def build_transcribe_kwargs(beam_size=5, language="zh", initial_prompt=None, condition_on_previous_text=True):
-    kwargs = {
-        "beam_size": int(beam_size) if beam_size else 5,
-        "condition_on_previous_text": condition_on_previous_text,
-    }
-    if language:
-        kwargs["language"] = language
-    if initial_prompt:
-        kwargs["initial_prompt"] = initial_prompt
-    return kwargs
-
 
 class FileTranscriberThread(QThread):
     text_updated = pyqtSignal(str)
@@ -55,92 +41,55 @@ class FileTranscriberThread(QThread):
         super().__init__()
         self.model = model
         self.file_path = file_path
-        self.target_dbfs = target_dbfs
-        self.beam_size = beam_size
-        self.initial_prompt = resolve_initial_prompt(initial_prompt, DEFAULT_PROMPT)
-        self.language = language
-        self.enable_denoise = enable_denoise
-        self.cancel_requested = False
+        self.settings = FileTranscriptionSettings(
+            target_dbfs=target_dbfs,
+            beam_size=beam_size,
+            initial_prompt=resolve_initial_prompt(initial_prompt),
+            language=language,
+            enable_denoise=enable_denoise,
+        )
+        self.cancellation = CancellationToken()
+
+    @property
+    def initial_prompt(self):
+        return self.settings.initial_prompt
+
+    @property
+    def enable_denoise(self):
+        return self.settings.enable_denoise
+
+    @property
+    def cancel_requested(self):
+        return self.cancellation.cancelled
 
     def request_cancel(self):
-        self.cancel_requested = True
+        self.cancellation.request_cancel()
 
     def _raise_if_cancelled(self):
-        if self.cancel_requested:
-            raise RuntimeError("File transcription cancelled.")
+        self.cancellation.raise_if_cancelled()
 
     def run(self):
         self.status_updated.emit("⏳ Analyzing audio file, please wait...")
-        temp_path = None
-        audio = None
-        normalized = None
         file_name = os.path.basename(self.file_path)
         try:
-            self.status_updated.emit(f"🔊 Preparing {file_name} for transcription...")
-            self._raise_if_cancelled()
-            audio = AudioSegment.from_file(self.file_path)
-            if self.enable_denoise:
-                self.status_updated.emit(f"🧹 Applying denoise to {file_name}...")
-                self._raise_if_cancelled()
-                audio = reduce_audio_segment_noise(audio)
-
-            self.status_updated.emit(f"🔉 Normalizing volume for {file_name}...")
-            self._raise_if_cancelled()
-            normalized = audio.apply_gain(self.target_dbfs - audio.dBFS)
-            temp_path = temp_normalized_path(id(self))
-            normalized.export(str(temp_path), format="wav")
-
-            self._raise_if_cancelled()
-            segments, info = self.model.transcribe(
-                str(temp_path),
-                **build_transcribe_kwargs(
-                    beam_size=self.beam_size,
-                    language=self.language,
-                    initial_prompt=self.initial_prompt,
-                    condition_on_previous_text=True,
-                ),
+            transcribe_file(
+                model=self.model,
+                file_path=self.file_path,
+                settings=self.settings,
+                worker_id=id(self),
+                cancellation=self.cancellation,
+                status_callback=self.status_updated.emit,
+                line_callback=self.text_updated.emit,
             )
-
-            for segment in segments:
-                h, m = divmod(int(segment.start), 3600)
-                m, s = divmod(m, 60)
-                timestamp = f"{h:02d}:{m:02d}:{s:02d}"
-                formatted_text = f"[{timestamp}] {segment.text}"
-                self.text_updated.emit(formatted_text)
-                append_transcript_backup(formatted_text)
-            if self.cancel_requested:
-                self.status_updated.emit(f"⚠️ Cancelled transcribing {file_name}")
-            else:
-                self.status_updated.emit(f"✅ Finished transcribing {file_name}")
+        except FileTranscriptionCancelled:
+            self.status_updated.emit(f"⚠️ Cancelled transcribing {file_name}")
         except Exception as e:
-            error_msg = str(e)
-            lower_msg = error_msg.lower()
-            if is_cuda_runtime_error(error_msg):
-                error_msg = (
-                    "CUDA runtime is incomplete on this machine.\n"
-                    "The app tried to use the GPU model, but a CUDA runtime library is missing.\n\n"
-                    "Quick fix: open Advanced Settings, choose `int8`, click Reload Model, "
-                    "then import the file again."
-                )
-            elif "ffmpeg" in lower_msg or "ffprobe" in lower_msg:
-                error_msg = (
-                    f"{error_msg}\n\nImported media decoding depends on ffmpeg/ffprobe. "
-                    "Please install them and try again."
-                )
             if self.cancel_requested:
                 self.status_updated.emit(f"⚠️ Cancelled transcribing {file_name}")
             else:
                 self.status_updated.emit(f"❌ Failed to transcribe {file_name}")
-                self.error_signal.emit(f"{file_name}\n\n{error_msg}")
+                self.error_signal.emit(f"{file_name}\n\n{normalize_file_transcription_error(e)}")
         finally:
-            if temp_path and os.path.exists(temp_path):
-                os.remove(temp_path)
-
-            if audio:
-                del audio
-            if normalized:
-                del normalized
-            gc.collect()
             self.finished_signal.emit()
 
 

@@ -20,16 +20,20 @@ Use this sibling repository as the new maintainable Python codebase. Keep `recor
    - Cover denoise short-buffer handling.
    - Add splitter tests using tiny synthetic audio fixtures.
    - Add import smoke tests for all modules.
+   - File transcription pipeline tests now cover segment formatting, temp cleanup, cancellation, error guidance, and model kwargs.
 
 3. Runtime hardening
    - Replace `terminate()` on file worker shutdown with cooperative cancellation. Done in `src/aura/asr/threads.py` and `src/aura/ui/transcription_tab.py`.
    - Move temp files into a configurable runtime directory. Done with `AURA_RUNTIME_DIR` support in `src/aura/system/runtime_paths.py`.
    - Add structured logging instead of `print()`. Done for current runtime diagnostics in `src/aura/app.py`, `src/aura/audio/capture.py`, `src/aura/asr/threads.py`, and `src/aura/ui/transcription_tab.py`.
 
-4. UI cleanup
+4. Pipeline extraction
+   - Extract file import/transcription logic from `FileTranscriberThread` into `src/aura/asr/file_pipeline.py`. Done; the Qt class now wraps the service and emits UI signals.
+
+5. UI cleanup
    - Move display strings into a localization layer.
    - Keep English and Traditional Mandarin variants in one codebase instead of duplicate scripts.
 
-5. Packaging
+6. Packaging
    - Add release commands.
    - Add CI checks for compile, tests, and formatting. Compile and unit-test CI is now in `.github/workflows/ci.yml`; formatting/linting can be added after adopting a formatter.

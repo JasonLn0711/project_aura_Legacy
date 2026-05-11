@@ -84,7 +84,8 @@ project_aura_refactor/
 │   ├── config.py                 # Runtime constants
 │   ├── metadata.py               # Version and project metadata
 │   ├── asr/
-│   │   └── threads.py            # Model loader, live ASR, batch file ASR
+│   │   ├── file_pipeline.py      # File prep, formatting, cancellation, and transcription services
+│   │   └── threads.py            # Thin Qt wrappers for model loading, live ASR, batch file ASR
 │   ├── audio/
 │   │   ├── capture.py            # PyAudio/PulseAudio recording thread
 │   │   ├── denoise.py            # Safe noisereduce wrapper
@@ -109,6 +110,7 @@ project_aura_refactor/
 - The default prompt path is explicit and tested for both batch and live ASR.
 - Runtime outputs are ignored without hiding source files.
 - The app source is importable and testable as a package.
+- File import transcription is extracted into a testable pipeline service outside the Qt thread.
 
 ## Environment Requirements
 
@@ -256,6 +258,7 @@ PYTHONPATH=src python -m unittest discover -s tests
 
 Current coverage includes:
 
+- file transcription pipeline formatting, prep, cleanup, and cancellation behavior
 - short-buffer denoise stability
 - silence denoise bypass
 - synthetic signal preservation smoke check

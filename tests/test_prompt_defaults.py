@@ -1,11 +1,7 @@
 import unittest
 
-from aura.asr.threads import (
-    FileTranscriberThread,
-    TranscriberThread,
-    build_transcribe_kwargs,
-    resolve_initial_prompt,
-)
+from aura.asr.file_pipeline import build_transcribe_kwargs, resolve_initial_prompt
+from aura.asr.threads import FileTranscriberThread, TranscriberThread
 from aura.config import DEFAULT_LIVE_PROMPT, DEFAULT_PROMPT
 
 

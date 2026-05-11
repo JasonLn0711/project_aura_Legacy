@@ -8,6 +8,7 @@ from faster_whisper import WhisperModel
 from pydub import AudioSegment
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from aura.audio.denoise import reduce_audio_segment_noise
 from aura.config import COMPUTE_TYPE, DEFAULT_LIVE_PROMPT, DEFAULT_PROMPT, DEVICE, MODEL_ID
 from aura.system.cuda import is_cuda_runtime_error, preload_cuda_runtime_libraries
 
@@ -34,9 +35,19 @@ def build_transcribe_kwargs(beam_size=5, language="zh", initial_prompt=None, con
 class FileTranscriberThread(QThread):
     text_updated = pyqtSignal(str)
     status_updated = pyqtSignal(str)
+    error_signal = pyqtSignal(str)
     finished_signal = pyqtSignal()
 
-    def __init__(self, model, file_path, target_dbfs=-20.0, beam_size=5, initial_prompt=None, language="zh"):
+    def __init__(
+        self,
+        model,
+        file_path,
+        target_dbfs=-20.0,
+        beam_size=5,
+        initial_prompt=None,
+        language="zh",
+        enable_denoise=False,
+    ):
         super().__init__()
         self.model = model
         self.file_path = file_path
@@ -44,15 +55,22 @@ class FileTranscriberThread(QThread):
         self.beam_size = beam_size
         self.initial_prompt = resolve_initial_prompt(initial_prompt, DEFAULT_PROMPT)
         self.language = language
+        self.enable_denoise = enable_denoise
 
     def run(self):
         self.status_updated.emit("⏳ Analyzing audio file, please wait...")
         temp_path = None
         audio = None
         normalized = None
+        file_name = os.path.basename(self.file_path)
         try:
-            self.status_updated.emit("🔊 Analyzing audio volume...")
+            self.status_updated.emit(f"🔊 Preparing {file_name} for transcription...")
             audio = AudioSegment.from_file(self.file_path)
+            if self.enable_denoise:
+                self.status_updated.emit(f"🧹 Applying denoise to {file_name}...")
+                audio = reduce_audio_segment_noise(audio)
+
+            self.status_updated.emit(f"🔉 Normalizing volume for {file_name}...")
             normalized = audio.apply_gain(self.target_dbfs - audio.dBFS)
             temp_path = os.path.join(os.getcwd(), "temp_normalized.wav")
             normalized.export(temp_path, format="wav")
@@ -76,9 +94,24 @@ class FileTranscriberThread(QThread):
 
                 with open("temp_transcript.txt", "a", encoding="utf-8") as f:
                     f.write(formatted_text + "\n")
-            self.status_updated.emit("✅ File processing completed!")
+            self.status_updated.emit(f"✅ Finished transcribing {file_name}")
         except Exception as e:
-            self.status_updated.emit(f"❌ File processing failed: {e}")
+            error_msg = str(e)
+            lower_msg = error_msg.lower()
+            if is_cuda_runtime_error(error_msg):
+                error_msg = (
+                    "CUDA runtime is incomplete on this machine.\n"
+                    "The app tried to use the GPU model, but a CUDA runtime library is missing.\n\n"
+                    "Quick fix: open Advanced Settings, choose `int8`, click Reload Model, "
+                    "then import the file again."
+                )
+            elif "ffmpeg" in lower_msg or "ffprobe" in lower_msg:
+                error_msg = (
+                    f"{error_msg}\n\nImported media decoding depends on ffmpeg/ffprobe. "
+                    "Please install them and try again."
+                )
+            self.status_updated.emit(f"❌ Failed to transcribe {file_name}")
+            self.error_signal.emit(f"{file_name}\n\n{error_msg}")
         finally:
             if temp_path and os.path.exists(temp_path):
                 os.remove(temp_path)

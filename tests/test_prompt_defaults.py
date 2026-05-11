@@ -14,6 +14,7 @@ class PromptDefaultTests(unittest.TestCase):
         thread = FileTranscriberThread(model=object(), file_path="input.wav")
 
         self.assertEqual(thread.initial_prompt, DEFAULT_PROMPT)
+        self.assertFalse(thread.enable_denoise)
 
     def test_live_thread_starts_with_live_default_prompt(self):
         thread = TranscriberThread()

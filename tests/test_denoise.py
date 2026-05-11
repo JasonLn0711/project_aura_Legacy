@@ -1,8 +1,9 @@
 import unittest
 
 import numpy as np
+from pydub import AudioSegment
 
-from aura.audio.denoise import reduce_noise_safely
+from aura.audio.denoise import reduce_audio_segment_noise, reduce_noise_safely
 
 
 def snr_db(reference, residual):
@@ -42,6 +43,25 @@ class DenoiseTests(unittest.TestCase):
         self.assertFalse(np.isnan(output).any())
         self.assertFalse(np.isinf(output).any())
         self.assertGreaterEqual(output_snr, input_snr - 0.5)
+
+    def test_reduce_audio_segment_noise_preserves_layout(self):
+        sample_rate = 16000
+        left = np.zeros(sample_rate // 10, dtype=np.int16)
+        right = np.zeros(sample_rate // 10, dtype=np.int16)
+        stereo = np.stack([left, right], axis=1)
+        audio = AudioSegment(
+            stereo.tobytes(),
+            frame_rate=sample_rate,
+            sample_width=2,
+            channels=2,
+        )
+
+        output = reduce_audio_segment_noise(audio)
+
+        self.assertEqual(output.frame_rate, sample_rate)
+        self.assertEqual(output.sample_width, 2)
+        self.assertEqual(output.channels, 2)
+        self.assertEqual(len(output), len(audio))
 
 
 if __name__ == "__main__":

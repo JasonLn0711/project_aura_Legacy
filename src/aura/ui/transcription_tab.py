@@ -75,9 +75,12 @@ class TranscriptionTab(QWidget):
         settings_vbox = QVBoxLayout(self.settings_container)
 
         denoise_layout = QHBoxLayout()
-        self.chk_denoise = QCheckBox("Enable Real-time Denoise")
+        self.chk_denoise = QCheckBox("Enable Denoise (Recording + Import)")
         self.chk_denoise.setChecked(False)
-        self.chk_denoise.setToolTip("Recommended for noisy environments; keep off in quiet environments to preserve detail")
+        self.chk_denoise.setToolTip(
+            "Applies noise reduction to live recording and imported media. "
+            "Keep off in quiet environments to preserve detail."
+        )
         denoise_layout.addWidget(self.chk_denoise)
         denoise_layout.addStretch()
         settings_vbox.addLayout(denoise_layout)
@@ -157,7 +160,7 @@ class TranscriptionTab(QWidget):
         self.btn_record.setFixedHeight(50)
         self.btn_record.setStyleSheet("font-size: 16px; font-weight: bold;")
 
-        self.btn_import = QPushButton("📁 Import Audio/Video for Transcription")
+        self.btn_import = QPushButton("📁 Import Audio/Video and Start Transcription")
         self.btn_import.clicked.connect(self.import_file)
         self.btn_import.setFixedHeight(50)
 
@@ -169,6 +172,11 @@ class TranscriptionTab(QWidget):
         btn_layout.addWidget(self.btn_import, stretch=2)
         btn_layout.addWidget(self.btn_save_txt, stretch=1)
         layout.addLayout(btn_layout)
+
+        self.batch_hint = QLabel("Imported files begin batch transcription automatically. No separate ASR start button is required.")
+        self.batch_hint.setWordWrap(True)
+        self.batch_hint.setStyleSheet("color: #9e9e9e; font-size: 12px;")
+        layout.addWidget(self.batch_hint)
 
         self.apply_model_settings()
         self.check_for_updates()
@@ -291,11 +299,17 @@ class TranscriptionTab(QWidget):
             beam_size=self.spin_beam.value(),
             initial_prompt=self.prompt_input.text(),
             language=self.combo_lang.currentData(),
+            enable_denoise=self.chk_denoise.isChecked(),
         )
         self.file_thread.text_updated.connect(self.update_log)
         self.file_thread.status_updated.connect(self.update_status_only)
+        self.file_thread.error_signal.connect(self.on_file_error)
         self.file_thread.finished_signal.connect(self.process_next_file)
         self.file_thread.start()
+
+    @pyqtSlot(str)
+    def on_file_error(self, err_msg):
+        QMessageBox.critical(self, "File Transcription Failed", err_msg)
 
     def toggle_record(self):
         if self.recorder_thread is None:

@@ -1,5 +1,6 @@
 import datetime
 import gc
+import logging
 import os
 import webbrowser
 from concurrent.futures import ThreadPoolExecutor
@@ -28,6 +29,8 @@ from aura.asr.threads import FileTranscriberThread, ModelLoaderThread, Transcrib
 from aura.audio.capture import AudioRecorderThread
 from aura.config import DEFAULT_PROMPT, DEVICE
 from aura.system.update_checker import UpdateCheckerThread
+
+logger = logging.getLogger(__name__)
 
 
 class TranscriptionTab(QWidget):
@@ -410,7 +413,7 @@ class TranscriptionTab(QWidget):
             del audio
             del normalized
         except Exception as e:
-            print(f"Processing failed: {e}")
+            logger.exception("Recording normalization failed: %s", e)
         finally:
             gc.collect()
 

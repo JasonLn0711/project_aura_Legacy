@@ -1,3 +1,4 @@
+import logging
 import os
 import wave
 
@@ -9,6 +10,8 @@ from PyQt6.QtCore import QThread, pyqtSignal
 from aura.audio.denoise import reduce_noise_safely
 from aura.config import CHUNK_MS, CHUNK_SIZE, SAMPLE_RATE, VAD_LEVEL
 from aura.system.native_audio import no_alsa_err, suppress_native_stderr
+
+logger = logging.getLogger(__name__)
 
 
 class AudioRecorderThread(QThread):
@@ -37,7 +40,7 @@ class AudioRecorderThread(QThread):
             try:
                 audio_np = reduce_noise_safely(audio_np, SAMPLE_RATE)
             except Exception as e:
-                print(f"Denoising failed (skipped): {e}")
+                logger.warning("Denoising failed; continuing without denoise: %s", e)
 
         padding_length = int(SAMPLE_RATE * 0.5)
         silence_padding = np.zeros(padding_length, dtype=np.float32)
@@ -59,7 +62,7 @@ class AudioRecorderThread(QThread):
                     break
 
             if target_device_index is not None:
-                print(f"🚀 Mounting PulseAudio virtual device: Index {target_device_index}, Channels: {target_channels}")
+                logger.info("Mounting PulseAudio virtual device index=%s channels=%s", target_device_index, target_channels)
                 stream = pa.open(
                     format=pyaudio.paInt16,
                     channels=target_channels,
@@ -69,7 +72,7 @@ class AudioRecorderThread(QThread):
                     frames_per_buffer=CHUNK_SIZE,
                 )
             else:
-                print("⚠️ Pulse device not found, trying system default device...")
+                logger.warning("Pulse device not found; trying system default input device")
                 stream = pa.open(
                     format=pyaudio.paInt16,
                     channels=1,
@@ -124,7 +127,7 @@ class AudioRecorderThread(QThread):
                     speech_buffer = self._flush_speech_buffer(speech_buffer)
                     silence_frames = 0
             except Exception as e:
-                print(f"Audio loop error: {e}")
+                logger.exception("Audio loop stopped after error: %s", e)
                 break
 
         speech_buffer = self._flush_speech_buffer(speech_buffer)

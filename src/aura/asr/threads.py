@@ -1,5 +1,6 @@
 import datetime
 import gc
+import logging
 import os
 import queue
 import time
@@ -12,6 +13,8 @@ from aura.audio.denoise import reduce_audio_segment_noise
 from aura.config import COMPUTE_TYPE, DEFAULT_LIVE_PROMPT, DEFAULT_PROMPT, DEVICE, MODEL_ID
 from aura.system.cuda import is_cuda_runtime_error, preload_cuda_runtime_libraries
 from aura.system.runtime_paths import append_transcript_backup, temp_normalized_path
+
+logger = logging.getLogger(__name__)
 
 
 def resolve_initial_prompt(prompt, default_prompt):
@@ -241,7 +244,7 @@ class TranscriberThread(QThread):
                 continue
             except Exception as e:
                 err = f"Live transcription error: {e}"
-                print(err)
+                logger.exception(err)
                 self.status_updated.emit(f"⚠️ {err}")
 
     def add_audio(self, audio_np):

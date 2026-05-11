@@ -24,7 +24,7 @@ Use this sibling repository as the new maintainable Python codebase. Keep `recor
 3. Runtime hardening
    - Replace `terminate()` on file worker shutdown with cooperative cancellation. Done in `src/aura/asr/threads.py` and `src/aura/ui/transcription_tab.py`.
    - Move temp files into a configurable runtime directory. Done with `AURA_RUNTIME_DIR` support in `src/aura/system/runtime_paths.py`.
-   - Add structured logging instead of `print()`.
+   - Add structured logging instead of `print()`. Done for current runtime diagnostics in `src/aura/app.py`, `src/aura/audio/capture.py`, `src/aura/asr/threads.py`, and `src/aura/ui/transcription_tab.py`.
 
 4. UI cleanup
    - Move display strings into a localization layer.

@@ -8,8 +8,27 @@ from faster_whisper import WhisperModel
 from pydub import AudioSegment
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from aura.config import COMPUTE_TYPE, DEFAULT_LIVE_PROMPT, DEVICE, MODEL_ID
+from aura.config import COMPUTE_TYPE, DEFAULT_LIVE_PROMPT, DEFAULT_PROMPT, DEVICE, MODEL_ID
 from aura.system.cuda import is_cuda_runtime_error, preload_cuda_runtime_libraries
+
+
+def resolve_initial_prompt(prompt, default_prompt):
+    """Use the default prompt only when the caller did not provide a value."""
+    if prompt is None:
+        return default_prompt
+    return str(prompt).strip()
+
+
+def build_transcribe_kwargs(beam_size=5, language="zh", initial_prompt=None, condition_on_previous_text=True):
+    kwargs = {
+        "beam_size": int(beam_size) if beam_size else 5,
+        "condition_on_previous_text": condition_on_previous_text,
+    }
+    if language:
+        kwargs["language"] = language
+    if initial_prompt:
+        kwargs["initial_prompt"] = initial_prompt
+    return kwargs
 
 
 class FileTranscriberThread(QThread):
@@ -17,13 +36,13 @@ class FileTranscriberThread(QThread):
     status_updated = pyqtSignal(str)
     finished_signal = pyqtSignal()
 
-    def __init__(self, model, file_path, target_dbfs=-20.0, beam_size=5, initial_prompt="", language="zh"):
+    def __init__(self, model, file_path, target_dbfs=-20.0, beam_size=5, initial_prompt=None, language="zh"):
         super().__init__()
         self.model = model
         self.file_path = file_path
         self.target_dbfs = target_dbfs
         self.beam_size = beam_size
-        self.initial_prompt = initial_prompt
+        self.initial_prompt = resolve_initial_prompt(initial_prompt, DEFAULT_PROMPT)
         self.language = language
 
     def run(self):
@@ -40,10 +59,12 @@ class FileTranscriberThread(QThread):
 
             segments, info = self.model.transcribe(
                 temp_path,
-                beam_size=self.beam_size,
-                language=self.language,
-                condition_on_previous_text=True,
-                initial_prompt=self.initial_prompt,
+                **build_transcribe_kwargs(
+                    beam_size=self.beam_size,
+                    language=self.language,
+                    initial_prompt=self.initial_prompt,
+                    condition_on_previous_text=True,
+                ),
             )
 
             for segment in segments:
@@ -139,10 +160,10 @@ class TranscriberThread(QThread):
         self.live_language = "zh"
         self.live_initial_prompt = DEFAULT_LIVE_PROMPT
 
-    def update_live_settings(self, beam_size=5, language="zh", initial_prompt=""):
+    def update_live_settings(self, beam_size=5, language="zh", initial_prompt=None):
         self.live_beam_size = int(beam_size) if beam_size else 5
         self.live_language = language
-        self.live_initial_prompt = initial_prompt.strip() if initial_prompt else ""
+        self.live_initial_prompt = resolve_initial_prompt(initial_prompt, DEFAULT_LIVE_PROMPT)
 
     def run(self):
         while self.running:
@@ -152,14 +173,12 @@ class TranscriberThread(QThread):
                     continue
 
                 audio_data = self.audio_queue.get(timeout=1)
-                transcribe_kwargs = {
-                    "beam_size": self.live_beam_size,
-                    "condition_on_previous_text": False,
-                }
-                if self.live_language:
-                    transcribe_kwargs["language"] = self.live_language
-                if self.live_initial_prompt:
-                    transcribe_kwargs["initial_prompt"] = self.live_initial_prompt
+                transcribe_kwargs = build_transcribe_kwargs(
+                    beam_size=self.live_beam_size,
+                    language=self.live_language,
+                    initial_prompt=self.live_initial_prompt,
+                    condition_on_previous_text=False,
+                )
 
                 segments, info = self.model.transcribe(audio_data, **transcribe_kwargs)
                 text_segment = "".join([s.text for s in segments])

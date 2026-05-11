@@ -52,6 +52,22 @@ docs/legacy_audio_assistant_v1.5.0.py
 - The application source is now importable and testable as a package.
 - Runtime outputs are ignored without hiding source files.
 
+## Default Prompt Behavior
+
+The default file-transcription prompt is:
+
+```text
+這是一份專業的繁體中文會議紀錄，請務必根據語氣加上正確的全形標點符號。
+```
+
+It is loaded into the hidden Advanced Settings prompt field at startup and is passed to both batch file transcription and live recording when recording starts.
+
+The lower-level ASR threads also have defaults now:
+
+- File transcription uses the Traditional Mandarin meeting-record prompt when no prompt is supplied.
+- Live transcription uses `The following is a professional meeting record.` when no live prompt is supplied.
+- If a caller explicitly passes an empty string, the app respects that as "no prompt".
+
 ## Install
 
 Use a fresh virtual environment in this repo:

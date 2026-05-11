@@ -2,6 +2,7 @@ import unittest
 
 from aura.asr.file_pipeline import build_transcribe_kwargs, resolve_initial_prompt
 from aura.asr.threads import FileTranscriberThread, TranscriberThread
+from aura.audio.denoise import DEFAULT_ACTIVE_DENOISE_PRESET, OFF_DENOISE_PRESET
 from aura.config import DEFAULT_LIVE_PROMPT, DEFAULT_PROMPT
 
 
@@ -11,6 +12,13 @@ class PromptDefaultTests(unittest.TestCase):
 
         self.assertEqual(thread.initial_prompt, DEFAULT_PROMPT)
         self.assertFalse(thread.enable_denoise)
+        self.assertEqual(thread.settings.denoise_preset, OFF_DENOISE_PRESET)
+
+    def test_file_thread_maps_legacy_denoise_flag_to_light_preset(self):
+        thread = FileTranscriberThread(model=object(), file_path="input.wav", enable_denoise=True)
+
+        self.assertTrue(thread.enable_denoise)
+        self.assertEqual(thread.settings.denoise_preset, DEFAULT_ACTIVE_DENOISE_PRESET)
 
     def test_live_thread_starts_with_live_default_prompt(self):
         thread = TranscriberThread()

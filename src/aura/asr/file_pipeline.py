@@ -6,7 +6,7 @@ from typing import Callable
 
 from pydub import AudioSegment
 
-from aura.audio.denoise import reduce_audio_segment_noise
+from aura.audio.denoise import OFF_DENOISE_PRESET, normalize_denoise_preset, reduce_audio_segment_noise
 from aura.settings import DEFAULT_SETTINGS
 from aura.system.cuda import is_cuda_runtime_error
 from aura.system.runtime_paths import append_transcript_backup, temp_normalized_path
@@ -35,6 +35,14 @@ class FileTranscriptionSettings:
     initial_prompt: str | None = DEFAULT_SETTINGS.file_initial_prompt
     language: str | None = DEFAULT_SETTINGS.language
     enable_denoise: bool = DEFAULT_SETTINGS.denoise_enabled
+    denoise_preset: str = DEFAULT_SETTINGS.denoise_preset
+
+    def __post_init__(self):
+        object.__setattr__(
+            self,
+            "denoise_preset",
+            normalize_denoise_preset(self.enable_denoise, self.denoise_preset),
+        )
 
 
 @dataclass(frozen=True)
@@ -106,11 +114,11 @@ def prepare_import_audio(
         with open(file_path, "rb") as source:
             audio = AudioSegment.from_file(source)
 
-        if settings.enable_denoise:
+        if settings.denoise_preset != OFF_DENOISE_PRESET:
             if status_callback:
-                status_callback(f"🧹 Applying denoise to {file_name}...")
+                status_callback(f"🧹 Applying {settings.denoise_preset} denoise to {file_name}...")
             cancellation.raise_if_cancelled()
-            audio = reduce_audio_segment_noise(audio)
+            audio = reduce_audio_segment_noise(audio, preset=settings.denoise_preset)
 
         if status_callback:
             status_callback(f"🔉 Normalizing volume for {file_name}...")

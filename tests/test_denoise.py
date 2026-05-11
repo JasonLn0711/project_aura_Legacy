@@ -3,7 +3,14 @@ import unittest
 import numpy as np
 from pydub import AudioSegment
 
-from aura.audio.denoise import reduce_audio_segment_noise, reduce_noise_safely
+from aura.audio.denoise import (
+    DEFAULT_ACTIVE_DENOISE_PRESET,
+    OFF_DENOISE_PRESET,
+    denoise_policy_for,
+    normalize_denoise_preset,
+    reduce_audio_segment_noise,
+    reduce_noise_safely,
+)
 
 
 def snr_db(reference, residual):
@@ -11,6 +18,22 @@ def snr_db(reference, residual):
 
 
 class DenoiseTests(unittest.TestCase):
+    def test_normalize_denoise_preset_maps_legacy_checkbox_to_light(self):
+        self.assertEqual(normalize_denoise_preset(True, OFF_DENOISE_PRESET), DEFAULT_ACTIVE_DENOISE_PRESET)
+        self.assertEqual(normalize_denoise_preset(False, OFF_DENOISE_PRESET), OFF_DENOISE_PRESET)
+        self.assertEqual(normalize_denoise_preset(False, "medium"), "medium")
+
+    def test_unknown_denoise_preset_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "Unknown denoise preset"):
+            denoise_policy_for("aggressive")
+
+    def test_off_preset_returns_original_live_buffer(self):
+        audio = np.ones(480, dtype=np.float32)
+
+        output = reduce_noise_safely(audio, preset=OFF_DENOISE_PRESET)
+
+        self.assertIs(output, audio)
+
     def test_reduce_noise_safely_accepts_short_live_frame(self):
         audio = np.zeros(480, dtype=np.float32)
 
@@ -62,6 +85,13 @@ class DenoiseTests(unittest.TestCase):
         self.assertEqual(output.sample_width, 2)
         self.assertEqual(output.channels, 2)
         self.assertEqual(len(output), len(audio))
+
+    def test_reduce_audio_segment_noise_off_preset_returns_original_segment(self):
+        audio = AudioSegment.silent(duration=100, frame_rate=16000)
+
+        output = reduce_audio_segment_noise(audio, preset=OFF_DENOISE_PRESET)
+
+        self.assertIs(output, audio)
 
 
 if __name__ == "__main__":

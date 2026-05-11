@@ -14,6 +14,7 @@ class AppSettings:
     file_initial_prompt: str | None = DEFAULT_PROMPT
     live_initial_prompt: str | None = DEFAULT_LIVE_PROMPT
     denoise_enabled: bool = False
+    denoise_preset: str = "off"
     splitter_target_minutes: int = 40
     splitter_tolerance_minutes: int = 5
 

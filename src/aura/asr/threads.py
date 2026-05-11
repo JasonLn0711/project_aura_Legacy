@@ -7,6 +7,7 @@ import time
 from faster_whisper import WhisperModel
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from aura.audio.denoise import OFF_DENOISE_PRESET, normalize_denoise_preset
 from aura.asr.file_pipeline import (
     CancellationToken,
     FileTranscriptionCancelled,
@@ -37,8 +38,10 @@ class FileTranscriberThread(QThread):
         initial_prompt=None,
         language=DEFAULT_SETTINGS.language,
         enable_denoise=DEFAULT_SETTINGS.denoise_enabled,
+        denoise_preset=DEFAULT_SETTINGS.denoise_preset,
     ):
         super().__init__()
+        resolved_denoise_preset = normalize_denoise_preset(enable_denoise, denoise_preset)
         self.model = model
         self.file_path = file_path
         self.settings = FileTranscriptionSettings(
@@ -46,7 +49,8 @@ class FileTranscriberThread(QThread):
             beam_size=beam_size,
             initial_prompt=resolve_initial_prompt(initial_prompt),
             language=language,
-            enable_denoise=enable_denoise,
+            enable_denoise=resolved_denoise_preset != OFF_DENOISE_PRESET,
+            denoise_preset=resolved_denoise_preset,
         )
         self.cancellation = CancellationToken()
 
@@ -56,7 +60,7 @@ class FileTranscriberThread(QThread):
 
     @property
     def enable_denoise(self):
-        return self.settings.enable_denoise
+        return self.settings.denoise_preset != OFF_DENOISE_PRESET
 
     @property
     def cancel_requested(self):

@@ -7,7 +7,7 @@ import pyaudio
 import webrtcvad
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from aura.audio.denoise import reduce_noise_safely
+from aura.audio.denoise import OFF_DENOISE_PRESET, normalize_denoise_preset, reduce_noise_safely
 from aura.config import CHUNK_MS, CHUNK_SIZE, SAMPLE_RATE, VAD_LEVEL
 from aura.system.native_audio import no_alsa_err, suppress_native_stderr
 
@@ -18,11 +18,12 @@ class AudioRecorderThread(QThread):
     waveform_signal = pyqtSignal(np.ndarray)
     finished_signal = pyqtSignal(str)
 
-    def __init__(self, filename, transcriber_thread, enable_denoise=False):
+    def __init__(self, filename, transcriber_thread, enable_denoise=False, denoise_preset=None):
         super().__init__()
         self.filename = filename
         self.transcriber = transcriber_thread
-        self.enable_denoise = enable_denoise
+        self.denoise_preset = normalize_denoise_preset(enable_denoise, denoise_preset)
+        self.enable_denoise = self.denoise_preset != OFF_DENOISE_PRESET
         self.running = True
         self.vad = webrtcvad.Vad(VAD_LEVEL)
         self.full_frames = []
@@ -38,7 +39,7 @@ class AudioRecorderThread(QThread):
 
         if self.enable_denoise:
             try:
-                audio_np = reduce_noise_safely(audio_np, SAMPLE_RATE)
+                audio_np = reduce_noise_safely(audio_np, SAMPLE_RATE, preset=self.denoise_preset)
             except Exception as e:
                 logger.warning("Denoising failed; continuing without denoise: %s", e)
 

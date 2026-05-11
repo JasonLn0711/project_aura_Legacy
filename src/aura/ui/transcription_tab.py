@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 )
 
 from aura.asr.threads import FileTranscriberThread, ModelLoaderThread, TranscriberThread
+from aura.audio.denoise import normalize_denoise_preset
 from aura.audio.capture import AudioRecorderThread
 from aura.audio.export import normalize_wav_to_mp3
 from aura.settings import DEFAULT_SETTINGS
@@ -236,6 +237,9 @@ class TranscriptionTab(QWidget):
             if self.file_thread is None or not self.file_thread.isRunning():
                 self.process_next_file()
 
+    def selected_denoise_preset(self) -> str:
+        return normalize_denoise_preset(self.chk_denoise.isChecked(), self.settings.denoise_preset)
+
     def apply_model_settings(self):
         if self.model_loader and self.model_loader.isRunning():
             return
@@ -306,6 +310,7 @@ class TranscriptionTab(QWidget):
             initial_prompt=self.prompt_input.text(),
             language=self.combo_lang.currentData(),
             enable_denoise=self.chk_denoise.isChecked(),
+            denoise_preset=self.selected_denoise_preset(),
         )
         self.file_thread.text_updated.connect(self.update_log)
         self.file_thread.status_updated.connect(self.update_status_only)
@@ -342,6 +347,7 @@ class TranscriptionTab(QWidget):
                 full_path,
                 self.transcriber_thread,
                 enable_denoise=self.chk_denoise.isChecked(),
+                denoise_preset=self.selected_denoise_preset(),
             )
             self.recorder_thread.waveform_signal.connect(self.update_plot)
             self.recorder_thread.finished_signal.connect(self.process_audio)

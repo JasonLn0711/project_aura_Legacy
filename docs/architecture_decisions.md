@@ -19,4 +19,6 @@ The practical rule is: if a behavior can be tested without starting Qt, keep it 
 
 Keep extracting logic from UI classes into small service modules, then protect the service modules with fast synthetic-audio tests. This reduces the risk of changing the desktop UI while preserving behavior from the legacy one-file app.
 
-The next high-value cleanup after the current settings/message split is to make denoise policy explicit as a preset rather than a single boolean.
+The denoise policy is now explicit as presets: `off`, `light`, and `medium`. The current UI checkbox remains for compatibility and maps unchecked to `off` and checked to `light`.
+
+The next high-value cleanup is to expose those presets in the UI with a combo box after enough real meeting samples are available for listening checks.

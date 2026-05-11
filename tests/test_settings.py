@@ -12,6 +12,7 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(DEFAULT_SETTINGS.compute_type, COMPUTE_TYPE)
         self.assertEqual(DEFAULT_SETTINGS.file_initial_prompt, DEFAULT_PROMPT)
         self.assertEqual(DEFAULT_SETTINGS.live_initial_prompt, DEFAULT_LIVE_PROMPT)
+        self.assertEqual(DEFAULT_SETTINGS.denoise_preset, "off")
 
     def test_custom_settings_can_override_runtime_defaults(self):
         settings = AppSettings(device="cpu", compute_type="int8", language=None, target_dbfs=-18.0)

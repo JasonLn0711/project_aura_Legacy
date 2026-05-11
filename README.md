@@ -238,11 +238,14 @@ The lower-level ASR threads also have explicit defaults:
 
 ## Denoise Behavior
 
-Live denoise is intentionally conservative:
+Live denoise is intentionally conservative and policy-driven:
 
+- Denoise is represented internally as explicit presets: `off`, `light`, and `medium`.
+- The current UI checkbox keeps the legacy interaction model: unchecked maps to `off`, checked maps to `light`.
 - Silent and near-silent buffers are returned unchanged.
 - Very tiny buffers are skipped because spectral reduction has too little context.
-- Non-silent buffers use `noisereduce` in non-stationary mode with gentle reduction, `prop_decrease=0.35`.
+- Non-silent `light` buffers use `noisereduce` in non-stationary mode with gentle reduction, `prop_decrease=0.35`.
+- `medium` exists for future UI exposure and uses `prop_decrease=0.55`; it may affect speech detail more.
 - FFT and hop sizes are capped dynamically so short live buffers cannot trigger `noverlap must be less than nperseg`.
 
 On the current workstation using the legacy `.record` environment, rough timings were:
@@ -281,6 +284,7 @@ Current coverage includes:
 - runtime settings and UI message formatting defaults
 - import smoke coverage for every `aura` package module
 - short-buffer denoise stability
+- denoise preset normalization and `off` bypass behavior
 - silence denoise bypass
 - synthetic signal preservation smoke check
 - runtime temp path and backup cleanup behavior

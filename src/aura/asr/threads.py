@@ -16,7 +16,7 @@ from aura.asr.file_pipeline import (
     resolve_initial_prompt,
     transcribe_file,
 )
-from aura.config import COMPUTE_TYPE, DEFAULT_LIVE_PROMPT, DEVICE, MODEL_ID
+from aura.settings import DEFAULT_SETTINGS
 from aura.system.cuda import is_cuda_runtime_error, preload_cuda_runtime_libraries
 from aura.system.runtime_paths import append_transcript_backup
 
@@ -32,11 +32,11 @@ class FileTranscriberThread(QThread):
         self,
         model,
         file_path,
-        target_dbfs=-20.0,
-        beam_size=5,
+        target_dbfs=DEFAULT_SETTINGS.target_dbfs,
+        beam_size=DEFAULT_SETTINGS.beam_size,
         initial_prompt=None,
-        language="zh",
-        enable_denoise=False,
+        language=DEFAULT_SETTINGS.language,
+        enable_denoise=DEFAULT_SETTINGS.denoise_enabled,
     ):
         super().__init__()
         self.model = model
@@ -124,7 +124,7 @@ class ModelLoaderThread(QThread):
                 f"🚀 Loading model in background ({self.actual_device}/{self.actual_compute_type})..."
             )
             model = WhisperModel(
-                MODEL_ID,
+                DEFAULT_SETTINGS.model_id,
                 device=self.actual_device,
                 compute_type=self.actual_compute_type,
             )
@@ -137,7 +137,7 @@ class ModelLoaderThread(QThread):
                     self.actual_compute_type = "int8"
                     self.runtime_note = "CUDA runtime failed during initialization. Retrying on CPU/int8."
                     self.status_signal.emit(f"⚠️ {self.runtime_note}")
-                    model = WhisperModel(MODEL_ID, device="cpu", compute_type="int8")
+                    model = WhisperModel(DEFAULT_SETTINGS.model_id, device="cpu", compute_type="int8")
                     self.finished_signal.emit(model)
                     return
                 except Exception as fallback_error:
@@ -156,16 +156,21 @@ class TranscriberThread(QThread):
         self.audio_queue = queue.Queue()
         self.running = True
         self.model = None
-        self.device = DEVICE
-        self.compute_type = COMPUTE_TYPE
-        self.live_beam_size = 5
-        self.live_language = "zh"
-        self.live_initial_prompt = DEFAULT_LIVE_PROMPT
+        self.device = DEFAULT_SETTINGS.device
+        self.compute_type = DEFAULT_SETTINGS.compute_type
+        self.live_beam_size = DEFAULT_SETTINGS.beam_size
+        self.live_language = DEFAULT_SETTINGS.language
+        self.live_initial_prompt = DEFAULT_SETTINGS.live_initial_prompt
 
-    def update_live_settings(self, beam_size=5, language="zh", initial_prompt=None):
-        self.live_beam_size = int(beam_size) if beam_size else 5
+    def update_live_settings(
+        self,
+        beam_size=DEFAULT_SETTINGS.beam_size,
+        language=DEFAULT_SETTINGS.language,
+        initial_prompt=None,
+    ):
+        self.live_beam_size = int(beam_size) if beam_size else DEFAULT_SETTINGS.beam_size
         self.live_language = language
-        self.live_initial_prompt = resolve_initial_prompt(initial_prompt, DEFAULT_LIVE_PROMPT)
+        self.live_initial_prompt = resolve_initial_prompt(initial_prompt, DEFAULT_SETTINGS.live_initial_prompt)
 
     def run(self):
         while self.running:

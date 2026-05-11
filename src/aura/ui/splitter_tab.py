@@ -15,11 +15,15 @@ from PyQt6.QtWidgets import (
 )
 
 from aura.audio.splitter import SmartSplitterThread
+from aura.settings import DEFAULT_SETTINGS
+from aura.ui.messages import UI_TEXT
 
 
 class SplitterTab(QWidget):
-    def __init__(self):
+    def __init__(self, settings=DEFAULT_SETTINGS, strings=UI_TEXT):
         super().__init__()
+        self.settings = settings
+        self.strings = strings
         self.file_path = None
         self.output_dir = None
         self.thread = None
@@ -29,39 +33,39 @@ class SplitterTab(QWidget):
         layout = QVBoxLayout(self)
         layout.setSpacing(15)
 
-        header = QLabel("✂️ Intelligent Track Splitter")
+        header = QLabel(self.strings.splitter_header)
         header.setStyleSheet("font-size: 20px; font-weight: bold; color: #00bcd4;")
         layout.addWidget(header, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        desc = QLabel("Automatically find speaker pauses or breaths for cutting to avoid abrupt interruptions.")
+        desc = QLabel(self.strings.splitter_description)
         desc.setStyleSheet("font-size: 14px; color: #aaaaaa;")
         layout.addWidget(desc, alignment=Qt.AlignmentFlag.AlignCenter)
 
         settings_layout = QHBoxLayout()
-        settings_layout.addWidget(QLabel("Target Segment Length (minutes):"))
+        settings_layout.addWidget(QLabel(self.strings.splitter_target_length))
         self.spin_target = QSpinBox()
         self.spin_target.setRange(5, 120)
-        self.spin_target.setValue(40)
+        self.spin_target.setValue(self.settings.splitter_target_minutes)
         settings_layout.addWidget(self.spin_target)
 
-        settings_layout.addWidget(QLabel(" Tolerance (minutes):"))
+        settings_layout.addWidget(QLabel(self.strings.splitter_tolerance))
         self.spin_tol = QSpinBox()
         self.spin_tol.setRange(1, 15)
-        self.spin_tol.setValue(5)
+        self.spin_tol.setValue(self.settings.splitter_tolerance_minutes)
         settings_layout.addWidget(self.spin_tol)
         settings_layout.addStretch()
         layout.addLayout(settings_layout)
 
         btn_layout = QHBoxLayout()
-        self.btn_select = QPushButton("1. Select Source Audio")
+        self.btn_select = QPushButton(self.strings.splitter_select_source)
         self.btn_select.setFixedHeight(50)
         self.btn_select.clicked.connect(self.select_file)
 
-        self.btn_outdir = QPushButton("2. Select Output Folder")
+        self.btn_outdir = QPushButton(self.strings.splitter_select_output)
         self.btn_outdir.setFixedHeight(50)
         self.btn_outdir.clicked.connect(self.select_outdir)
 
-        self.btn_start = QPushButton("3. Start Intelligent Splitting")
+        self.btn_start = QPushButton(self.strings.splitter_start)
         self.btn_start.setFixedHeight(50)
         self.btn_start.setStyleSheet("background-color: #2e7d32; color: white; font-weight: bold;")
         self.btn_start.clicked.connect(self.start_split)
@@ -72,7 +76,7 @@ class SplitterTab(QWidget):
         btn_layout.addWidget(self.btn_start)
         layout.addLayout(btn_layout)
 
-        self.lbl_file = QLabel("No file selected")
+        self.lbl_file = QLabel(self.strings.splitter_no_file_selected)
         self.lbl_file.setStyleSheet("color: #ff9800;")
         layout.addWidget(self.lbl_file)
 
@@ -88,9 +92,9 @@ class SplitterTab(QWidget):
     def select_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select audio to split",
+            self.strings.splitter_select_audio,
             "",
-            "Audio/Video Files (*.mp3 *.wav *.m4a *.mp4 *.flac *.ogg *.aac *.mkv *.mov *.wma *.aiff *.opus)",
+            self.strings.splitter_media_filter,
         )
         if path:
             self.file_path = path
@@ -98,7 +102,7 @@ class SplitterTab(QWidget):
             self.update_status()
 
     def select_outdir(self):
-        dir_path = QFileDialog.getExistingDirectory(self, "Select output folder")
+        dir_path = QFileDialog.getExistingDirectory(self, self.strings.splitter_select_output_folder)
         if dir_path:
             self.output_dir = dir_path
             self.update_status()
@@ -106,7 +110,7 @@ class SplitterTab(QWidget):
     def update_status(self):
         if self.file_path and self.output_dir:
             file_name = os.path.basename(self.file_path)
-            self.lbl_file.setText(f"Source: {file_name} | Output to: {self.output_dir}")
+            self.lbl_file.setText(self.strings.splitter_status(file_name, self.output_dir))
             self.btn_start.setEnabled(True)
 
     def start_split(self):
@@ -135,12 +139,12 @@ class SplitterTab(QWidget):
         self.log_area.verticalScrollBar().setValue(self.log_area.verticalScrollBar().maximum())
 
     def handle_error(self, err_msg):
-        QMessageBox.critical(self, "Error", f"An error occurred during processing:\n{err_msg}")
+        QMessageBox.critical(self, self.strings.error_title, self.strings.splitter_error(err_msg))
         self.reset_ui()
 
     def process_finished(self):
         self.progress_bar.setValue(100)
-        QMessageBox.information(self, "Completed", "Intelligent splitting completed!")
+        QMessageBox.information(self, self.strings.splitter_completed_title, self.strings.splitter_completed)
         self.reset_ui()
 
     def reset_ui(self):

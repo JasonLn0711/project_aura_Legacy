@@ -63,6 +63,29 @@ class SplitterPipelineTests(unittest.TestCase):
             self.assertEqual(progress[-1], 100)
             self.assertIn("All segments have been split and saved.", logs[-1])
 
+    def test_split_audio_file_exports_multiple_chunks_for_longer_input(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source = Path(tmpdir) / "lecture.wav"
+            output_dir = Path(tmpdir) / "chunks"
+            output_dir.mkdir()
+            export_silence(source, duration_ms=1500)
+
+            result = split_audio_file(
+                file_path=str(source),
+                output_dir=str(output_dir),
+                settings=SplitterSettings(target_minutes=0.01, tolerance_minutes=0.003, min_silence_len=50),
+            )
+
+            self.assertEqual(
+                result.output_paths,
+                [
+                    output_dir / "lecture_part01.wav",
+                    output_dir / "lecture_part02.wav",
+                    output_dir / "lecture_part03.wav",
+                ],
+            )
+            self.assertTrue(all(path.exists() for path in result.output_paths))
+
     def test_split_audio_file_rejects_zero_target_length(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             source = Path(tmpdir) / "meeting.wav"

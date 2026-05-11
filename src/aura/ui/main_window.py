@@ -14,20 +14,21 @@ from PyQt6.QtWidgets import (
     QTabWidget,
 )
 
-from aura.metadata import __author__, __organization__, __version__
 from aura.system.runtime_paths import remove_transcript_backup
+from aura.ui.messages import UI_TEXT
 from aura.ui.splitter_tab import SplitterTab
 from aura.ui.transcription_tab import TranscriptionTab
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, strings=UI_TEXT):
         super().__init__()
+        self.strings = strings
         self.initUI()
         self.initSystemTray()
 
     def initUI(self):
-        self.setWindowTitle(f"Aura Audio Assistant (Project Aura) | v{__version__}")
+        self.setWindowTitle(self.strings.window_title)
         self.resize(1000, 800)
 
         self.tabs = QTabWidget()
@@ -36,17 +37,16 @@ class MainWindow(QMainWindow):
         self.tab_transcription = TranscriptionTab()
         self.tab_splitter = SplitterTab()
 
-        self.tabs.addTab(self.tab_transcription, "📝 Transcribing")
-        self.tabs.addTab(self.tab_splitter, "✂️ Track Splitting")
+        self.tabs.addTab(self.tab_transcription, self.strings.tab_transcribing)
+        self.tabs.addTab(self.tab_splitter, self.strings.tab_splitting)
 
         build_date = time.strftime("%Y-%m-%d", time.localtime(os.path.getmtime(__file__)))
 
-        self.sys_status = QLabel("Status: Idle | GPU: Allocating...")
+        self.sys_status = QLabel(self.strings.status_idle_gpu)
         self.sys_status.setStyleSheet("padding: 5px; color: #00ff00; font-weight: bold; font-size: 11px;")
         self.statusBar().addWidget(self.sys_status, 1)
 
-        footer_text = f"© {build_date[:4]}  {__organization__}  |  v{__version__} ({build_date})  |  {__author__}"
-        footer = QLabel(footer_text)
+        footer = QLabel(self.strings.footer(build_date))
         footer.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         footer.setStyleSheet("padding: 5px; color: #888888; font-size: 11px;")
         self.statusBar().addPermanentWidget(footer)
@@ -58,10 +58,10 @@ class MainWindow(QMainWindow):
 
         tray_menu = QMenu()
 
-        show_action = QAction("Show Main Window", self)
+        show_action = QAction(self.strings.tray_show_main_window, self)
         show_action.triggered.connect(self.show_window)
 
-        quit_action = QAction("Exit Program", self)
+        quit_action = QAction(self.strings.tray_exit_program, self)
         quit_action.triggered.connect(self.quit_app)
 
         tray_menu.addAction(show_action)
@@ -109,8 +109,8 @@ class MainWindow(QMainWindow):
         if self.tray_icon.isVisible():
             self.hide()
             self.tray_icon.showMessage(
-                "Comprehensive Audio Assistant",
-                "Program minimized to tray. Recording and transcription will continue in the background.",
+                self.strings.tray_message_title,
+                self.strings.tray_message_body,
                 QSystemTrayIcon.MessageIcon.Information,
                 2000,
             )

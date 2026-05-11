@@ -1,4 +1,5 @@
 import datetime
+import gc
 import logging
 import os
 import webbrowser
@@ -26,15 +27,18 @@ from PyQt6.QtWidgets import (
 from aura.asr.threads import FileTranscriberThread, ModelLoaderThread, TranscriberThread
 from aura.audio.capture import AudioRecorderThread
 from aura.audio.export import normalize_wav_to_mp3
-from aura.config import DEFAULT_PROMPT, DEVICE
+from aura.settings import DEFAULT_SETTINGS
 from aura.system.update_checker import UpdateCheckerThread
+from aura.ui.messages import UI_TEXT
 
 logger = logging.getLogger(__name__)
 
 
 class TranscriptionTab(QWidget):
-    def __init__(self):
+    def __init__(self, settings=DEFAULT_SETTINGS, strings=UI_TEXT):
         super().__init__()
+        self.settings = settings
+        self.strings = strings
         self.recorder_thread = None
         self.file_thread = None
         self.transcriber_thread = TranscriberThread()
@@ -55,15 +59,15 @@ class TranscriptionTab(QWidget):
         layout = QVBoxLayout(self)
 
         info_layout = QHBoxLayout()
-        self.status_label = QLabel("Status: Waiting for GPU initialization...")
+        self.status_label = QLabel(self.strings.status_waiting_gpu)
         self.status_label.setStyleSheet("font-weight: bold; color: #00bcd4; font-size: 14px;")
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Recording filename suffix")
+        self.name_input.setPlaceholderText(self.strings.recording_suffix_placeholder)
         info_layout.addWidget(self.status_label, stretch=2)
         info_layout.addWidget(self.name_input, stretch=1)
         layout.addLayout(info_layout)
 
-        self.btn_toggle_settings = QPushButton("▶ Show Advanced Settings")
+        self.btn_toggle_settings = QPushButton(self.strings.show_advanced_settings)
         self.btn_toggle_settings.setCheckable(True)
         self.btn_toggle_settings.setStyleSheet(
             "text-align: left; padding: 5px; background: #333; border-radius: 4px; "
@@ -77,62 +81,62 @@ class TranscriptionTab(QWidget):
         settings_vbox = QVBoxLayout(self.settings_container)
 
         denoise_layout = QHBoxLayout()
-        self.chk_denoise = QCheckBox("Enable Denoise (Recording + Import)")
-        self.chk_denoise.setChecked(False)
-        self.chk_denoise.setToolTip(
-            "Applies noise reduction to live recording and imported media. "
-            "Keep off in quiet environments to preserve detail."
-        )
+        self.chk_denoise = QCheckBox(self.strings.denoise_label)
+        self.chk_denoise.setChecked(self.settings.denoise_enabled)
+        self.chk_denoise.setToolTip(self.strings.denoise_tooltip)
         denoise_layout.addWidget(self.chk_denoise)
         denoise_layout.addStretch()
         settings_vbox.addLayout(denoise_layout)
 
         norm_layout = QHBoxLayout()
-        norm_layout.addWidget(QLabel("Target Volume Normalization (dBFS):"))
+        norm_layout.addWidget(QLabel(self.strings.target_volume_label))
         self.spin_norm = QSpinBox()
         self.spin_norm.setRange(-40, -5)
-        self.spin_norm.setValue(-20)
+        self.spin_norm.setValue(int(self.settings.target_dbfs))
         norm_layout.addWidget(self.spin_norm)
         norm_layout.addStretch()
         settings_vbox.addLayout(norm_layout)
 
         beam_layout = QHBoxLayout()
-        beam_layout.addWidget(QLabel("Beam Size (Recommended: 5):"))
+        beam_layout.addWidget(QLabel(self.strings.beam_size_label))
         self.spin_beam = QSpinBox()
         self.spin_beam.setRange(1, 15)
-        self.spin_beam.setValue(5)
+        self.spin_beam.setValue(self.settings.beam_size)
         beam_layout.addWidget(self.spin_beam)
         beam_layout.addStretch()
         settings_vbox.addLayout(beam_layout)
 
         prompt_layout = QVBoxLayout()
-        prompt_layout.addWidget(QLabel("Initial Prompt:"))
+        prompt_layout.addWidget(QLabel(self.strings.initial_prompt_label))
         self.prompt_input = QLineEdit()
-        self.prompt_input.setText(DEFAULT_PROMPT)
+        self.prompt_input.setText(self.settings.file_initial_prompt or "")
         prompt_layout.addWidget(self.prompt_input)
         settings_vbox.addLayout(prompt_layout)
 
         lang_layout = QHBoxLayout()
-        lang_layout.addWidget(QLabel("Recognition Language:"))
+        lang_layout.addWidget(QLabel(self.strings.language_label))
         self.combo_lang = QComboBox()
-        self.combo_lang.addItem("Auto Detect", None)
-        self.combo_lang.addItem("  Traditional Chinese  ", "zh")
-        self.combo_lang.addItem("English", "en")
-        self.combo_lang.addItem("Japanese", "ja")
-        self.combo_lang.setCurrentIndex(1)
+        self.combo_lang.addItem(self.strings.language_auto, None)
+        self.combo_lang.addItem(self.strings.language_zh, "zh")
+        self.combo_lang.addItem(self.strings.language_en, "en")
+        self.combo_lang.addItem(self.strings.language_ja, "ja")
+        lang_index = self.combo_lang.findData(self.settings.language)
+        self.combo_lang.setCurrentIndex(lang_index if lang_index >= 0 else 0)
         lang_layout.addWidget(self.combo_lang)
         lang_layout.addStretch()
         settings_vbox.addLayout(lang_layout)
 
         model_settings_layout = QHBoxLayout()
-        model_settings_layout.addWidget(QLabel("Compute Precision:"))
+        model_settings_layout.addWidget(QLabel(self.strings.compute_precision_label))
         self.combo_compute = QComboBox()
-        self.combo_compute.addItem("float16 (GPU Recommended)", "float16")
-        self.combo_compute.addItem("int8 (CPU Accel/Save Memory)", "int8")
-        self.combo_compute.addItem("float32 (High Precision)", "float32")
+        self.combo_compute.addItem(self.strings.compute_float16, "float16")
+        self.combo_compute.addItem(self.strings.compute_int8, "int8")
+        self.combo_compute.addItem(self.strings.compute_float32, "float32")
+        compute_index = self.combo_compute.findData(self.settings.compute_type)
+        self.combo_compute.setCurrentIndex(compute_index if compute_index >= 0 else 0)
         model_settings_layout.addWidget(self.combo_compute)
 
-        self.btn_reload_model = QPushButton("🔄 Reload Model")
+        self.btn_reload_model = QPushButton(self.strings.reload_model)
         self.btn_reload_model.setStyleSheet("background-color: #546e7a; color: white;")
         self.btn_reload_model.clicked.connect(self.apply_model_settings)
         model_settings_layout.addWidget(self.btn_reload_model)
@@ -145,7 +149,7 @@ class TranscriptionTab(QWidget):
         self.batch_progress.setVisible(False)
         layout.addWidget(self.batch_progress)
 
-        self.plot_widget = pg.PlotWidget(title="Live Waveform")
+        self.plot_widget = pg.PlotWidget(title=self.strings.live_waveform_title)
         self.plot_widget.setYRange(-30000, 30000)
         self.plot_data = np.zeros(4000)
         self.curve = self.plot_widget.plot(self.plot_data, pen="c")
@@ -157,16 +161,16 @@ class TranscriptionTab(QWidget):
         layout.addWidget(self.text_area, stretch=2)
 
         btn_layout = QHBoxLayout()
-        self.btn_record = QPushButton("🎙️ Start Recording")
+        self.btn_record = QPushButton(self.strings.start_recording)
         self.btn_record.clicked.connect(self.toggle_record)
         self.btn_record.setFixedHeight(50)
         self.btn_record.setStyleSheet("font-size: 16px; font-weight: bold;")
 
-        self.btn_import = QPushButton("📁 Import Audio/Video and Start Transcription")
+        self.btn_import = QPushButton(self.strings.import_media)
         self.btn_import.clicked.connect(self.import_file)
         self.btn_import.setFixedHeight(50)
 
-        self.btn_save_txt = QPushButton("💾 Save Transcript (.txt)")
+        self.btn_save_txt = QPushButton(self.strings.save_transcript)
         self.btn_save_txt.clicked.connect(self.save_transcript)
         self.btn_save_txt.setFixedHeight(50)
 
@@ -175,7 +179,7 @@ class TranscriptionTab(QWidget):
         btn_layout.addWidget(self.btn_save_txt, stretch=1)
         layout.addLayout(btn_layout)
 
-        self.batch_hint = QLabel("Imported files begin batch transcription automatically. No separate ASR start button is required.")
+        self.batch_hint = QLabel(self.strings.batch_hint)
         self.batch_hint.setWordWrap(True)
         self.batch_hint.setStyleSheet("color: #9e9e9e; font-size: 12px;")
         layout.addWidget(self.batch_hint)
@@ -191,8 +195,8 @@ class TranscriptionTab(QWidget):
     def show_update_dialog(self, version, url):
         reply = QMessageBox.question(
             self,
-            "New Version Found",
-            f"Detected new version v{version}!\nGo to GitHub to download?",
+            self.strings.new_version_found,
+            self.strings.update_found(version),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
@@ -200,25 +204,25 @@ class TranscriptionTab(QWidget):
 
     def toggle_settings(self):
         if self.btn_toggle_settings.isChecked():
-            self.btn_toggle_settings.setText("▼ Hide Advanced Settings")
+            self.btn_toggle_settings.setText(self.strings.hide_advanced_settings)
             self.settings_container.setVisible(True)
         else:
-            self.btn_toggle_settings.setText("▶ Show Advanced Settings")
+            self.btn_toggle_settings.setText(self.strings.show_advanced_settings)
             self.settings_container.setVisible(False)
 
     def import_file(self):
         if self.transcriber_thread.model is None:
-            QMessageBox.warning(self, "Please wait", "Model is not ready.")
+            QMessageBox.warning(self, self.strings.please_wait_title, self.strings.model_not_ready)
             return
         if self.recorder_thread is not None:
-            QMessageBox.warning(self, "Error", "Please stop recording before importing files.")
+            QMessageBox.warning(self, self.strings.error_title, self.strings.stop_recording_before_import)
             return
 
         files, _ = QFileDialog.getOpenFileNames(
             self,
-            "Select Media Files",
+            self.strings.select_media_files,
             "",
-            "Media Files (*.mp4 *.m4a *.mp3 *.wav *.flac *.mkv)",
+            self.strings.media_files_filter,
         )
         if files:
             self.pending_files.extend(files)
@@ -238,9 +242,9 @@ class TranscriptionTab(QWidget):
 
         new_compute = self.combo_compute.currentData()
         self.btn_reload_model.setEnabled(False)
-        self.btn_reload_model.setText("⏳ Loading...")
+        self.btn_reload_model.setText(self.strings.loading_model)
 
-        self.model_loader = ModelLoaderThread(DEVICE, new_compute)
+        self.model_loader = ModelLoaderThread(self.settings.device, new_compute)
         self.model_loader.status_signal.connect(self.update_status_only)
         self.model_loader.error_signal.connect(self.on_model_error)
         self.model_loader.finished_signal.connect(self.on_model_loaded)
@@ -253,7 +257,7 @@ class TranscriptionTab(QWidget):
             gc.collect()
 
         self.transcriber_thread.model = new_model
-        active_device = getattr(self.model_loader, "actual_device", DEVICE)
+        active_device = getattr(self.model_loader, "actual_device", self.settings.device)
         active_compute = getattr(self.model_loader, "actual_compute_type", self.combo_compute.currentData())
         self.transcriber_thread.device = active_device
         self.transcriber_thread.compute_type = active_compute
@@ -265,20 +269,20 @@ class TranscriptionTab(QWidget):
             self.combo_compute.blockSignals(False)
 
         self.btn_reload_model.setEnabled(True)
-        self.btn_reload_model.setText("🔄 Reload Model")
-        self.status_label.setText(f"✅ Model is ready ({active_device}/{active_compute})")
+        self.btn_reload_model.setText(self.strings.reload_model)
+        self.status_label.setText(self.strings.model_ready(active_device, active_compute))
 
     @pyqtSlot(str)
     def on_model_error(self, err_msg):
-        QMessageBox.critical(self, "Model Loading Failed", err_msg)
+        QMessageBox.critical(self, self.strings.model_loading_failed, err_msg)
         self.btn_reload_model.setEnabled(True)
-        self.btn_reload_model.setText("🔄 Reload Model")
+        self.btn_reload_model.setText(self.strings.reload_model)
 
     def process_next_file(self):
         if not self.pending_files:
             self.btn_record.setEnabled(True)
             self.btn_import.setEnabled(True)
-            self.status_label.setText("✅ All batch tasks completed")
+            self.status_label.setText(self.strings.batch_tasks_completed)
             self.batch_progress.setVisible(False)
             self.total_batch_count = 0
             return
@@ -292,7 +296,7 @@ class TranscriptionTab(QWidget):
         self.batch_progress.setValue(completed)
 
         total_left = len(self.pending_files) + 1
-        self.status_label.setText(f"📂 Batch processing in progress (remaining {total_left} files): {base_name}")
+        self.status_label.setText(self.strings.batch_processing(total_left, base_name))
 
         self.file_thread = FileTranscriberThread(
             self.transcriber_thread.model,
@@ -311,12 +315,12 @@ class TranscriptionTab(QWidget):
 
     @pyqtSlot(str)
     def on_file_error(self, err_msg):
-        QMessageBox.critical(self, "File Transcription Failed", err_msg)
+        QMessageBox.critical(self, self.strings.file_transcription_failed, err_msg)
 
     def toggle_record(self):
         if self.recorder_thread is None:
             if self.transcriber_thread.model is None:
-                QMessageBox.warning(self, "Please wait", "Model is not ready.")
+                QMessageBox.warning(self, self.strings.please_wait_title, self.strings.model_not_ready)
                 return
 
             suffix = self.name_input.text().strip() or "record"
@@ -345,9 +349,9 @@ class TranscriptionTab(QWidget):
             self.btn_import.setEnabled(False)
             self.recorder_thread.start()
 
-            self.btn_record.setText("🛑 Stop Recording")
+            self.btn_record.setText(self.strings.stop_recording)
             self.btn_record.setStyleSheet("background-color: #e74c3c; color: white; font-size: 16px; font-weight: bold;")
-            self.status_label.setText(f"🔴 Recording: {base_name}")
+            self.status_label.setText(self.strings.recording(base_name))
             self.text_area.clear()
         else:
             self.recorder_thread.running = False
@@ -355,22 +359,27 @@ class TranscriptionTab(QWidget):
             self.recorder_thread = None
 
             self.btn_import.setEnabled(True)
-            self.btn_record.setText("🎙️ Start Recording")
+            self.btn_record.setText(self.strings.start_recording)
             self.btn_record.setStyleSheet("font-size: 16px; font-weight: bold;")
-            self.status_label.setText("✅ Recording finished, processing...")
+            self.status_label.setText(self.strings.recording_finished_processing)
 
     def save_transcript(self):
         content = self.text_area.toPlainText()
         if not content.strip():
-            QMessageBox.warning(self, "Notice", "There is currently no content to save.")
+            QMessageBox.warning(self, self.strings.notice_title, self.strings.no_content_to_save)
             return
 
         default_path = os.path.join(self.current_folder, f"{self.current_filename}.txt")
-        file_path, _ = QFileDialog.getSaveFileName(self, "Save File", default_path, "Text Files (*.txt)")
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            self.strings.save_file,
+            default_path,
+            self.strings.text_files_filter,
+        )
         if file_path:
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
-            QMessageBox.information(self, "Success", f"Transcript saved successfully!\n{file_path}")
+            QMessageBox.information(self, self.strings.success_title, self.strings.transcript_saved(file_path))
 
     @pyqtSlot(np.ndarray)
     def update_plot(self, data):

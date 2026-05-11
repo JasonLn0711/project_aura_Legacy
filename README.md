@@ -75,6 +75,7 @@ project_aura_refactor/
 ├── README.md
 ├── requirements.txt
 ├── docs/
+│   ├── architecture_decisions.md
 │   ├── legacy_audio_assistant_v1.5.0.py
 │   └── refactor_plan.md
 ├── img/
@@ -84,6 +85,7 @@ project_aura_refactor/
 │   ├── app.py                    # QApplication entrypoint
 │   ├── config.py                 # Runtime constants
 │   ├── metadata.py               # Version and project metadata
+│   ├── settings.py               # Testable runtime defaults
 │   ├── asr/
 │   │   ├── file_pipeline.py      # File prep, formatting, cancellation, and transcription services
 │   │   └── threads.py            # Thin Qt wrappers for model loading, live ASR, batch file ASR
@@ -98,6 +100,7 @@ project_aura_refactor/
 │   │   ├── native_audio.py       # ALSA/JACK stderr suppression helpers
 │   │   └── update_checker.py     # Background GitHub release check
 │   └── ui/
+│       ├── messages.py           # User-facing strings and dynamic UI message formatting
 │       ├── main_window.py
 │       ├── splitter_tab.py
 │       └── transcription_tab.py
@@ -115,6 +118,7 @@ project_aura_refactor/
 - The app source is importable and testable as a package.
 - File import transcription is extracted into a testable pipeline service outside the Qt thread.
 - Smart audio splitting is extracted into a testable pipeline service outside the Qt thread.
+- Runtime defaults and UI messages are centralized in testable modules.
 
 ## Environment Requirements
 
@@ -273,6 +277,8 @@ Current coverage includes:
 - file transcription pipeline formatting, prep, cleanup, and cancellation behavior
 - recording WAV-to-MP3 normalization/export behavior
 - smart splitter extension handling, split-point selection, export, and progress callbacks
+- multi-chunk splitter workflow behavior using synthetic audio
+- runtime settings and UI message formatting defaults
 - import smoke coverage for every `aura` package module
 - short-buffer denoise stability
 - silence denoise bypass

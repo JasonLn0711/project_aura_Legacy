@@ -34,8 +34,10 @@ Use this sibling repository as the new maintainable Python codebase. Keep `recor
    - Move GitHub release-check repository identity into config. Done with `GITHUB_REPOSITORY` and `latest_release_api_url()`.
 
 5. UI cleanup
-   - Move display strings into a localization layer.
+   - Move display strings into a localization layer. Started with `src/aura/ui/messages.py`; main window, transcription tab, and splitter tab now read user-facing labels/dialog text from `UIStrings`.
    - Keep English and Traditional Mandarin variants in one codebase instead of duplicate scripts.
+   - Centralize runtime defaults. Done with `src/aura/settings.py`; ASR threads, file transcription defaults, and UI controls now use `AppSettings`.
+   - Record first-principles ownership boundaries. Done in `docs/architecture_decisions.md`.
 
 6. Packaging
    - Add release commands. Done with `Makefile` targets for `check`, `test`, `compile`, `build`, and `clean`, plus README release-build instructions.

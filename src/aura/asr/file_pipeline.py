@@ -7,7 +7,7 @@ from typing import Callable
 from pydub import AudioSegment
 
 from aura.audio.denoise import reduce_audio_segment_noise
-from aura.config import DEFAULT_PROMPT
+from aura.settings import DEFAULT_SETTINGS
 from aura.system.cuda import is_cuda_runtime_error
 from aura.system.runtime_paths import append_transcript_backup, temp_normalized_path
 
@@ -30,11 +30,11 @@ class CancellationToken:
 
 @dataclass(frozen=True)
 class FileTranscriptionSettings:
-    target_dbfs: float = -20.0
-    beam_size: int = 5
-    initial_prompt: str | None = DEFAULT_PROMPT
-    language: str | None = "zh"
-    enable_denoise: bool = False
+    target_dbfs: float = DEFAULT_SETTINGS.target_dbfs
+    beam_size: int = DEFAULT_SETTINGS.beam_size
+    initial_prompt: str | None = DEFAULT_SETTINGS.file_initial_prompt
+    language: str | None = DEFAULT_SETTINGS.language
+    enable_denoise: bool = DEFAULT_SETTINGS.denoise_enabled
 
 
 @dataclass(frozen=True)
@@ -44,7 +44,7 @@ class FileTranscriptionResult:
     cancelled: bool = False
 
 
-def resolve_initial_prompt(prompt, default_prompt=DEFAULT_PROMPT):
+def resolve_initial_prompt(prompt, default_prompt=DEFAULT_SETTINGS.file_initial_prompt):
     """Use the default prompt only when the caller did not provide a value."""
     if prompt is None:
         return default_prompt

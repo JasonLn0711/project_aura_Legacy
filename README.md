@@ -203,7 +203,7 @@ The packaged entrypoints are defined in `pyproject.toml`:
 | VAD Level | `3` |
 | ASR Model | `SoybeanMilk/faster-whisper-Breeze-ASR-25` |
 | Device | `cuda`, with CPU fallback |
-| Compute Type | `float16`, with `int8` fallback |
+| Compute Type | `int8` on CUDA/RTX GPU by default, with CPU/int8 fallback only when CUDA is unavailable |
 | Target Volume | `-20 dBFS` |
 | Denoise | Off in UI by default |
 
@@ -325,7 +325,7 @@ Version bumps must follow the strict rule in [`docs/versioning.md`](docs/version
 
 ### GPU Out Of Memory
 
-- Open Advanced Settings and switch Compute Type to `int8`.
+- Open Advanced Settings and keep Compute Type on `int8` for the default RTX GPU path.
 - Close other GPU-heavy applications.
 - The app releases model references, runs garbage collection, and clears CUDA cache during cleanup when PyTorch is available.
 

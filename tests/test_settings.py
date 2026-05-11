@@ -10,6 +10,8 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(DEFAULT_SETTINGS.model_id, MODEL_ID)
         self.assertEqual(DEFAULT_SETTINGS.device, DEVICE)
         self.assertEqual(DEFAULT_SETTINGS.compute_type, COMPUTE_TYPE)
+        self.assertEqual(DEFAULT_SETTINGS.device, "cuda")
+        self.assertEqual(DEFAULT_SETTINGS.compute_type, "int8")
         self.assertEqual(DEFAULT_SETTINGS.file_initial_prompt, DEFAULT_PROMPT)
         self.assertEqual(DEFAULT_SETTINGS.live_initial_prompt, DEFAULT_LIVE_PROMPT)
         self.assertEqual(DEFAULT_SETTINGS.denoise_preset, "off")

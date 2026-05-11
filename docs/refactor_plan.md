@@ -32,4 +32,4 @@ Use this sibling repository as the new maintainable Python codebase. Keep `recor
 
 5. Packaging
    - Add release commands.
-   - Add CI checks for compile, tests, and formatting.
+   - Add CI checks for compile, tests, and formatting. Compile and unit-test CI is now in `.github/workflows/ci.yml`; formatting/linting can be added after adopting a formatter.

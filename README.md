@@ -1,6 +1,6 @@
 # Project AURA: Ultimate Audio Assistant Refactor
 
-![Status](https://img.shields.io/badge/Status-Refactor%20Baseline-blue?logo=github) ![Python Version](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python) ![ASR Engine](https://img.shields.io/badge/ASR-faster--whisper-orange) ![UI](https://img.shields.io/badge/UI-PyQt6-9cf) ![VAD](https://img.shields.io/badge/VAD-WebRTC_VAD-success) ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Status](https://img.shields.io/badge/Status-Refactor%20Baseline-blue?logo=github) ![CI](https://github.com/JasonLn0711/project_aura/actions/workflows/ci.yml/badge.svg) ![Python Version](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python) ![ASR Engine](https://img.shields.io/badge/ASR-faster--whisper-orange) ![UI](https://img.shields.io/badge/UI-PyQt6-9cf) ![VAD](https://img.shields.io/badge/VAD-WebRTC_VAD-success) ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 Project AURA is a desktop audio assistant for real-time recording, Whisper-based transcription, batch file transcription, and smart audio splitting.
 
@@ -262,6 +262,8 @@ Current coverage includes:
 - runtime temp path and backup cleanup behavior
 - default prompt behavior for batch and live ASR
 - transcribe keyword construction for language and prompt handling
+
+GitHub Actions also runs compile and unit tests on pushes to `main`, `refactor/**`, and pull requests.
 
 ## Troubleshooting
 

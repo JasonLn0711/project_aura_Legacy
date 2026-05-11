@@ -38,5 +38,5 @@ Use this sibling repository as the new maintainable Python codebase. Keep `recor
    - Keep English and Traditional Mandarin variants in one codebase instead of duplicate scripts.
 
 6. Packaging
-   - Add release commands.
+   - Add release commands. Done with `Makefile` targets for `check`, `test`, `compile`, `build`, and `clean`, plus README release-build instructions.
    - Add CI checks for compile, tests, and formatting. Compile and unit-test CI is now in `.github/workflows/ci.yml`; formatting/linting can be added after adopting a formatter.

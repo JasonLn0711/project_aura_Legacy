@@ -260,10 +260,20 @@ The regression tests use the Python standard library:
 PYTHONPATH=src python -m unittest discover -s tests
 ```
 
+The repo also includes repeatable Make targets:
+
+```bash
+make check PYTHON=/path/to/python
+make test PYTHON=/path/to/python
+make compile PYTHON=/path/to/python
+```
+
 Current coverage includes:
 
 - file transcription pipeline formatting, prep, cleanup, and cancellation behavior
 - recording WAV-to-MP3 normalization/export behavior
+- smart splitter extension handling, split-point selection, export, and progress callbacks
+- import smoke coverage for every `aura` package module
 - short-buffer denoise stability
 - silence denoise bypass
 - synthetic signal preservation smoke check
@@ -272,6 +282,27 @@ Current coverage includes:
 - transcribe keyword construction for language and prompt handling
 
 GitHub Actions also runs compile and unit tests on pushes to `main`, `refactor/**`, and pull requests.
+
+## Release Build
+
+Build a source distribution and wheel from a clean checkout:
+
+```bash
+python -m pip install --upgrade build
+python -m build
+```
+
+or use the repository command:
+
+```bash
+make build PYTHON=/path/to/python
+```
+
+Before tagging or publishing a release, run:
+
+```bash
+make check PYTHON=/path/to/python
+```
 
 ## Troubleshooting
 

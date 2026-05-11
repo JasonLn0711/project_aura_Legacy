@@ -18,6 +18,8 @@ from aura.asr.file_pipeline import (
     transcribe_file,
 )
 from aura.config import DEFAULT_PROMPT
+from aura.diarization.pyannote_pipeline import DiarizationSettings
+from aura.diarization.speaker_assignment import SpeakerTurn
 from aura.system import runtime_paths
 
 
@@ -32,7 +34,7 @@ class FakeModel:
 
     def transcribe(self, path, **kwargs):
         self.calls.append((path, kwargs))
-        return [SimpleNamespace(start=1.2, text=" hello")], SimpleNamespace()
+        return [SimpleNamespace(start=1.2, end=2.5, text=" hello")], SimpleNamespace()
 
 
 class FilePipelineTests(unittest.TestCase):
@@ -116,6 +118,34 @@ class FilePipelineTests(unittest.TestCase):
 
             self.assertEqual(model.calls[0][1]["beam_size"], 7)
             self.assertEqual(model.calls[0][1]["language"], "zh")
+
+    def test_transcribe_file_can_label_speakers_with_diarization_runner(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source = Path(tmpdir) / "input.wav"
+            export_silence(source)
+            model = FakeModel()
+            lines = []
+
+            def fake_diarization_runner(path, settings):
+                self.assertTrue(Path(path).exists())
+                self.assertEqual(settings.min_speakers, 2)
+                self.assertEqual(settings.max_speakers, 4)
+                return [SpeakerTurn(start=1.0, end=3.0, speaker="SPEAKER_01")]
+
+            with patch.dict(os.environ, {runtime_paths.RUNTIME_DIR_ENV: tmpdir}):
+                result = transcribe_file(
+                    model=model,
+                    file_path=str(source),
+                    settings=FileTranscriptionSettings(
+                        diarization=DiarizationSettings(enabled=True, min_speakers=2, max_speakers=4)
+                    ),
+                    worker_id="unit-diar",
+                    line_callback=lines.append,
+                    diarization_runner=fake_diarization_runner,
+                )
+
+            self.assertEqual(result.lines, ["[00:00:01] SPEAKER_01:  hello"])
+            self.assertEqual(lines, ["[00:00:01] SPEAKER_01:  hello"])
 
 
 if __name__ == "__main__":

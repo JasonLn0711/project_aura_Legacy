@@ -1,6 +1,13 @@
 import unittest
 
-from aura.config import COMPUTE_TYPE, DEFAULT_LIVE_PROMPT, DEFAULT_PROMPT, DEVICE, MODEL_ID
+from aura.config import (
+    COMPUTE_TYPE,
+    DEFAULT_LIVE_PROMPT,
+    DEFAULT_PROMPT,
+    DEVICE,
+    DIARIZATION_MODEL_ID,
+    MODEL_ID,
+)
 from aura.settings import DEFAULT_SETTINGS, AppSettings
 from aura.ui.messages import UIStrings
 
@@ -15,6 +22,10 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(DEFAULT_SETTINGS.file_initial_prompt, DEFAULT_PROMPT)
         self.assertEqual(DEFAULT_SETTINGS.live_initial_prompt, DEFAULT_LIVE_PROMPT)
         self.assertEqual(DEFAULT_SETTINGS.denoise_preset, "off")
+        self.assertFalse(DEFAULT_SETTINGS.speaker_diarization_enabled)
+        self.assertEqual(DEFAULT_SETTINGS.speaker_min_speakers, 2)
+        self.assertEqual(DEFAULT_SETTINGS.speaker_max_speakers, 6)
+        self.assertEqual(DEFAULT_SETTINGS.speaker_diarization_model, DIARIZATION_MODEL_ID)
 
     def test_custom_settings_can_override_runtime_defaults(self):
         settings = AppSettings(device="cpu", compute_type="int8", language=None, target_dbfs=-18.0)

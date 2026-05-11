@@ -27,6 +27,12 @@ dependencies = [
   "webrtcvad>=2.0.10",
 ]
 
+[project.optional-dependencies]
+diarization = [
+  "pyannote.audio>=4.0",
+  "torch>=2.0",
+]
+
 [project.scripts]
 aura = "aura.app:main"
 project-aura = "aura.app:main"

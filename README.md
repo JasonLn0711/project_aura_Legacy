@@ -55,6 +55,7 @@ The app is designed for professional meeting and lecture workflows. It includes 
 | --- | --- |
 | Real-time Transcription | Live microphone recording plus streaming ASR via `faster-whisper`. |
 | Batch Transcription | Import multiple audio/video files with queue scheduling and progress tracking. |
+| Speaker Diarization | Optional imported-file speaker labeling through `pyannote.audio`, with configurable speaker-count bounds. |
 | Real-time Denoising | Optional `noisereduce` processing before ASR for noisy environments. |
 | Volume Normalization | Dynamically standardizes imported and recorded audio to a target dBFS, default `-20`. |
 | Asynchronous Architecture | `ModelLoaderThread` prevents UI freezing during initialization and compute-type switching. |
@@ -158,6 +159,15 @@ If you prefer the pinned legacy dependency list:
 python -m pip install -r requirements.txt
 ```
 
+Speaker diarization is optional because it adds heavyweight ML dependencies:
+
+```bash
+python -m pip install -e ".[diarization]"
+export HUGGINGFACE_TOKEN=hf_your_token_here
+```
+
+Before using the default `pyannote/speaker-diarization-community-1` model, accept its Hugging Face terms for your account.
+
 ## Run
 
 From this sibling repo:
@@ -182,9 +192,9 @@ The packaged entrypoints are defined in `pyproject.toml`:
 ### Tab 1: Recording & Transcription
 
 1. Wait for the background `ModelLoaderThread` to initialize the ASR model.
-2. Open **Advanced Settings** to adjust target dBFS, compute type, beam size, language, initial prompt, and denoise.
+2. Open **Advanced Settings** to adjust target dBFS, compute type, beam size, language, initial prompt, denoise, and optional speaker diarization.
 3. Click **Start Recording** for live recording and live transcription.
-4. Click **Import Audio/Video** for batch transcription.
+4. Click **Import Audio/Video** for batch transcription. Speaker diarization runs only on imported files when enabled.
 5. Click **Save Transcript** to write the transcript to disk.
 
 ### Tab 2: Smart Splitter
@@ -206,6 +216,7 @@ The packaged entrypoints are defined in `pyproject.toml`:
 | Compute Type | `int8` on CUDA/RTX GPU by default, with CPU/int8 fallback only when CUDA is unavailable |
 | Target Volume | `-20 dBFS` |
 | Denoise | Off in UI by default |
+| Speaker Diarization | Off by default; imported-file range defaults to `2-6` speakers |
 
 ## Runtime Files
 
@@ -238,6 +249,35 @@ The lower-level ASR threads also have explicit defaults:
 - File transcription uses the Traditional Mandarin meeting-record prompt when no prompt is supplied.
 - Live transcription uses `The following is a professional meeting record.` when no live prompt is supplied.
 - If a caller explicitly passes an empty string, the app respects that as "no prompt".
+
+## Speaker Diarization Behavior
+
+Speaker diarization is an optional imported-file workflow. Live recording still uses the low-latency ASR queue without speaker labels.
+
+When enabled in Advanced Settings, the file pipeline:
+
+1. Decodes the source media with `pydub`.
+2. Optionally applies the selected denoise preset.
+3. Normalizes the file to the target dBFS and writes a temporary WAV under `AURA_RUNTIME_DIR`.
+4. Runs `faster-whisper` transcription on that prepared WAV.
+5. Runs `pyannote.audio` speaker diarization on the same prepared WAV.
+6. Assigns each transcript segment to the speaker turn with the largest timestamp overlap.
+7. Emits speaker-labeled lines such as:
+
+```text
+[00:01:12] SPEAKER_00: 今天先看這個案子。
+[00:01:18] SPEAKER_01: 好，我補充一下背景。
+```
+
+The UI exposes a minimum and maximum speaker count. If both values are equal, AURA passes an exact `num_speakers` value to pyannote. If they differ, AURA passes `min_speakers` and `max_speakers`, which is safer when the meeting size is uncertain.
+
+The default backend is `pyannote/speaker-diarization-community-1`. The implementation uses pyannote's exclusive diarization output when available because it is easier to reconcile with ASR timestamps.
+
+Known limits:
+
+- Speaker labels are anonymous (`SPEAKER_00`, `SPEAKER_01`) unless a future speaker-enrollment layer is added.
+- Overlapped speech, far-field microphones, noisy rooms, and similar voices can still produce wrong labels.
+- If `pyannote.audio` is not installed or no Hugging Face token is configured, imported-file transcription reports a clear setup error instead of failing silently.
 
 ## Denoise Behavior
 
@@ -287,6 +327,7 @@ Current coverage includes:
 - smart splitter extension handling, split-point selection, export, and progress callbacks
 - multi-chunk splitter workflow behavior using synthetic audio
 - runtime settings and UI message formatting defaults
+- speaker diarization timestamp assignment and speaker-count argument handling
 - import smoke coverage for every `aura` package module
 - short-buffer denoise stability
 - denoise preset normalization and `off` bypass behavior

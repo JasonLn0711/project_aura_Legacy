@@ -10,6 +10,7 @@ import pyqtgraph as pg
 from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtWidgets import (
     QComboBox,
+    QCheckBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -93,6 +94,28 @@ class TranscriptionTab(QWidget):
         denoise_layout.addWidget(self.combo_denoise)
         denoise_layout.addStretch()
         settings_vbox.addLayout(denoise_layout)
+
+        speaker_layout = QHBoxLayout()
+        self.check_speaker_diarization = QCheckBox(self.strings.speaker_diarization_label)
+        self.check_speaker_diarization.setToolTip(self.strings.speaker_diarization_tooltip)
+        self.check_speaker_diarization.setChecked(self.settings.speaker_diarization_enabled)
+        self.check_speaker_diarization.toggled.connect(self.update_speaker_controls)
+        speaker_layout.addWidget(self.check_speaker_diarization)
+
+        speaker_layout.addWidget(QLabel(self.strings.speaker_min_label))
+        self.spin_min_speakers = QSpinBox()
+        self.spin_min_speakers.setRange(1, 20)
+        self.spin_min_speakers.setValue(self.settings.speaker_min_speakers)
+        speaker_layout.addWidget(self.spin_min_speakers)
+
+        speaker_layout.addWidget(QLabel(self.strings.speaker_max_label))
+        self.spin_max_speakers = QSpinBox()
+        self.spin_max_speakers.setRange(1, 20)
+        self.spin_max_speakers.setValue(self.settings.speaker_max_speakers)
+        speaker_layout.addWidget(self.spin_max_speakers)
+        speaker_layout.addStretch()
+        settings_vbox.addLayout(speaker_layout)
+        self.update_speaker_controls(self.check_speaker_diarization.isChecked())
 
         norm_layout = QHBoxLayout()
         norm_layout.addWidget(QLabel(self.strings.target_volume_label))
@@ -251,6 +274,18 @@ class TranscriptionTab(QWidget):
     def denoise_enabled(self) -> bool:
         return self.selected_denoise_preset() != OFF_DENOISE_PRESET
 
+    def update_speaker_controls(self, enabled):
+        self.spin_min_speakers.setEnabled(enabled)
+        self.spin_max_speakers.setEnabled(enabled)
+
+    def selected_speaker_range(self):
+        min_speakers = self.spin_min_speakers.value()
+        max_speakers = self.spin_max_speakers.value()
+        if max_speakers < min_speakers:
+            max_speakers = min_speakers
+            self.spin_max_speakers.setValue(max_speakers)
+        return min_speakers, max_speakers
+
     def apply_model_settings(self):
         if self.model_loader and self.model_loader.isRunning():
             return
@@ -312,6 +347,7 @@ class TranscriptionTab(QWidget):
 
         total_left = len(self.pending_files) + 1
         self.status_label.setText(self.strings.batch_processing(total_left, base_name))
+        min_speakers, max_speakers = self.selected_speaker_range()
 
         self.file_thread = FileTranscriberThread(
             self.transcriber_thread.model,
@@ -322,6 +358,9 @@ class TranscriptionTab(QWidget):
             language=self.combo_lang.currentData(),
             enable_denoise=self.denoise_enabled(),
             denoise_preset=self.selected_denoise_preset(),
+            enable_speaker_diarization=self.check_speaker_diarization.isChecked(),
+            min_speakers=min_speakers,
+            max_speakers=max_speakers,
         )
         self.file_thread.text_updated.connect(self.update_log)
         self.file_thread.status_updated.connect(self.update_status_only)

@@ -1,6 +1,13 @@
 from dataclasses import dataclass
 
-from aura.config import COMPUTE_TYPE, DEFAULT_LIVE_PROMPT, DEFAULT_PROMPT, DEVICE, MODEL_ID
+from aura.config import (
+    COMPUTE_TYPE,
+    DEFAULT_LIVE_PROMPT,
+    DEFAULT_PROMPT,
+    DEVICE,
+    DIARIZATION_MODEL_ID,
+    MODEL_ID,
+)
 
 
 @dataclass(frozen=True)
@@ -15,6 +22,12 @@ class AppSettings:
     live_initial_prompt: str | None = DEFAULT_LIVE_PROMPT
     denoise_enabled: bool = False
     denoise_preset: str = "off"
+    speaker_diarization_enabled: bool = False
+    speaker_min_speakers: int = 2
+    speaker_max_speakers: int = 6
+    speaker_diarization_model: str = DIARIZATION_MODEL_ID
+    speaker_diarization_device: str = DEVICE
+    speaker_diarization_use_exclusive: bool = True
     splitter_target_minutes: int = 40
     splitter_tolerance_minutes: int = 5
 

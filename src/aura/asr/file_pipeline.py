@@ -7,6 +7,8 @@ from typing import Callable
 from pydub import AudioSegment
 
 from aura.audio.denoise import OFF_DENOISE_PRESET, normalize_denoise_preset, reduce_audio_segment_noise
+from aura.diarization.pyannote_pipeline import DiarizationSettings, diarize_audio_file
+from aura.diarization.speaker_assignment import TranscriptSegment, assign_speakers
 from aura.settings import DEFAULT_SETTINGS
 from aura.system.cuda import is_cuda_runtime_error
 from aura.system.runtime_paths import append_transcript_backup, temp_normalized_path
@@ -36,6 +38,7 @@ class FileTranscriptionSettings:
     language: str | None = DEFAULT_SETTINGS.language
     enable_denoise: bool = DEFAULT_SETTINGS.denoise_enabled
     denoise_preset: str = DEFAULT_SETTINGS.denoise_preset
+    diarization: DiarizationSettings = field(default_factory=DiarizationSettings)
 
     def __post_init__(self):
         object.__setattr__(
@@ -71,11 +74,25 @@ def build_transcribe_kwargs(beam_size=5, language="zh", initial_prompt=None, con
     return kwargs
 
 
-def format_segment(segment) -> str:
-    h, m = divmod(int(segment.start), 3600)
+def format_timestamp(seconds: float) -> str:
+    h, m = divmod(int(seconds), 3600)
     m, s = divmod(m, 60)
-    timestamp = f"{h:02d}:{m:02d}:{s:02d}"
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+
+def format_segment(segment, speaker: str | None = None) -> str:
+    timestamp = format_timestamp(segment.start)
+    if speaker:
+        return f"[{timestamp}] {speaker}: {segment.text}"
     return f"[{timestamp}] {segment.text}"
+
+
+def transcript_segment_from_whisper(segment) -> TranscriptSegment:
+    start = float(segment.start)
+    end = float(getattr(segment, "end", start))
+    if end < start:
+        end = start
+    return TranscriptSegment(start=start, end=end, text=str(segment.text))
 
 
 def normalize_file_transcription_error(error: Exception) -> str:
@@ -156,6 +173,7 @@ def transcribe_file(
     cancellation: CancellationToken | None = None,
     status_callback: Callable[[str], None] | None = None,
     line_callback: Callable[[str], None] | None = None,
+    diarization_runner: Callable[[Path, DiarizationSettings], list] | None = None,
 ) -> FileTranscriptionResult:
     cancellation = cancellation or CancellationToken()
     file_name = os.path.basename(file_path)
@@ -170,10 +188,32 @@ def transcribe_file(
             status_callback=status_callback,
         )
         segments, info = transcribe_prepared_file(model, prepared_path, settings)
+        transcript_segments = []
 
         for segment in segments:
             cancellation.raise_if_cancelled()
-            formatted_text = format_segment(segment)
+            transcript_segments.append(transcript_segment_from_whisper(segment))
+
+        if settings.diarization.enabled:
+            if status_callback:
+                status_callback(
+                    f"👥 Identifying speakers "
+                    f"({settings.diarization.min_speakers}-{settings.diarization.max_speakers})..."
+                )
+            cancellation.raise_if_cancelled()
+            runner = diarization_runner or diarize_audio_file
+            speaker_turns = runner(prepared_path, settings.diarization)
+            cancellation.raise_if_cancelled()
+            labeled_segments = assign_speakers(transcript_segments, speaker_turns)
+            formatted_lines = [
+                format_segment(item.transcript, speaker=item.speaker)
+                for item in labeled_segments
+            ]
+        else:
+            formatted_lines = [format_segment(segment) for segment in transcript_segments]
+
+        for formatted_text in formatted_lines:
+            cancellation.raise_if_cancelled()
             lines.append(formatted_text)
             if line_callback:
                 line_callback(formatted_text)

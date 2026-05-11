@@ -26,6 +26,13 @@ class UIStrings:
         "Applies noise reduction to live recording and imported media before ASR. "
         "Use Off in quiet environments; stronger modes may remove speech detail."
     )
+    speaker_diarization_label: str = "Identify speakers after import transcription"
+    speaker_diarization_tooltip: str = (
+        "Uses optional pyannote diarization on imported files and labels transcript segments by speaker. "
+        "Requires pyannote.audio and a Hugging Face token."
+    )
+    speaker_min_label: str = "Min Speakers:"
+    speaker_max_label: str = "Max Speakers:"
     target_volume_label: str = "Target Volume Normalization (dBFS):"
     beam_size_label: str = "Beam Size (Recommended: 5):"
     initial_prompt_label: str = "Initial Prompt:"

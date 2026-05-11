@@ -10,6 +10,7 @@ Therefore, each layer has one owner:
 - `src/aura/ui/messages.py` owns user-facing text and dynamic UI message formatting.
 - `src/aura/asr/` owns transcription behavior and ASR worker orchestration.
 - `src/aura/diarization/` owns optional speaker diarization backends and timestamp-based speaker assignment.
+- `src/aura/llm/` owns optional local LLM post-processing such as transcript summaries.
 - `src/aura/audio/` owns audio capture, denoise, export, and splitting behavior.
 - `src/aura/system/` owns platform/runtime concerns such as CUDA, native audio stderr, runtime paths, and update checks.
 - `src/aura/ui/` owns widgets, signal wiring, and user interaction only.
@@ -23,5 +24,7 @@ Keep extracting logic from UI classes into small service modules, then protect t
 The denoise policy is now explicit as presets: `off`, `light`, and `medium`. Advanced Settings exposes these as a `Denoise Mode` combo box while keeping `off` as the default.
 
 Speaker diarization is an optional imported-file post-processing path. It intentionally stays outside the live recording loop, uses `pyannote.audio` behind an optional dependency boundary, and reconciles ASR segments with speaker turns by timestamp overlap.
+
+LLM summary is also optional post-processing. It runs after ASR output exists, loads Qwen3.5-9B through an optional dependency boundary, and forces summary prompts toward Taiwanese Traditional Chinese so summarization behavior is independent from the ASR language setting.
 
 The next high-value cleanup is to add the evaluation harness described in `docs/denoise_upgrade_plan.md`, then test DeepFilterNet3 and ClearerVoice-Studio as optional model-based backends before promoting any new default.

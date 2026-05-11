@@ -65,6 +65,7 @@ class FileTranscriberThread(QThread):
             ),
         )
         self.cancellation = CancellationToken()
+        self.result_lines = []
 
     @property
     def initial_prompt(self):
@@ -88,7 +89,7 @@ class FileTranscriberThread(QThread):
         self.status_updated.emit("⏳ Analyzing audio file, please wait...")
         file_name = os.path.basename(self.file_path)
         try:
-            transcribe_file(
+            result = transcribe_file(
                 model=self.model,
                 file_path=self.file_path,
                 settings=self.settings,
@@ -97,6 +98,7 @@ class FileTranscriberThread(QThread):
                 status_callback=self.status_updated.emit,
                 line_callback=self.text_updated.emit,
             )
+            self.result_lines = result.lines
         except FileTranscriptionCancelled:
             self.status_updated.emit(f"⚠️ Cancelled transcribing {file_name}")
         except Exception as e:
@@ -171,6 +173,7 @@ class TranscriberThread(QThread):
         super().__init__()
         self.audio_queue = queue.Queue()
         self.running = True
+        self.processing = False
         self.model = None
         self.device = DEFAULT_SETTINGS.device
         self.compute_type = DEFAULT_SETTINGS.compute_type
@@ -203,6 +206,7 @@ class TranscriberThread(QThread):
                     condition_on_previous_text=False,
                 )
 
+                self.processing = True
                 segments, info = self.model.transcribe(audio_data, **transcribe_kwargs)
                 text_segment = "".join([s.text for s in segments])
                 if text_segment.strip():
@@ -216,9 +220,14 @@ class TranscriberThread(QThread):
                 err = f"Live transcription error: {e}"
                 logger.exception(err)
                 self.status_updated.emit(f"⚠️ {err}")
+            finally:
+                self.processing = False
 
     def add_audio(self, audio_np):
         self.audio_queue.put(audio_np)
+
+    def is_idle(self):
+        return self.audio_queue.empty() and not self.processing
 
     def stop(self):
         self.running = False

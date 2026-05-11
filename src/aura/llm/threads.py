@@ -1,0 +1,27 @@
+from PyQt6.QtCore import QThread, pyqtSignal
+
+from aura.llm.summary import SummarySettings, format_summary_block, summarize_transcript
+
+
+class SummaryThread(QThread):
+    summary_ready = pyqtSignal(str)
+    status_updated = pyqtSignal(str)
+    error_signal = pyqtSignal(str)
+
+    def __init__(self, transcript: str, settings: SummarySettings):
+        super().__init__()
+        self.transcript = transcript
+        self.settings = settings
+
+    def run(self):
+        try:
+            self.status_updated.emit("🧠 Summarizing transcript with local Qwen3.5-9B int8...")
+            summary = summarize_transcript(self.transcript, self.settings)
+            if summary.strip():
+                self.summary_ready.emit(format_summary_block(summary))
+                self.status_updated.emit("✅ LLM summary completed")
+            else:
+                self.status_updated.emit("⚠️ No transcript content available for summary")
+        except Exception as exc:
+            self.error_signal.emit(str(exc))
+            self.status_updated.emit("❌ LLM summary failed")

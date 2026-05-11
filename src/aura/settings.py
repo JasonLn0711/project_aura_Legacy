@@ -7,6 +7,7 @@ from aura.config import (
     DEVICE,
     DIARIZATION_MODEL_ID,
     MODEL_ID,
+    SUMMARY_MODEL_ID,
 )
 
 
@@ -28,6 +29,11 @@ class AppSettings:
     speaker_diarization_model: str = DIARIZATION_MODEL_ID
     speaker_diarization_device: str = DEVICE
     speaker_diarization_use_exclusive: bool = True
+    llm_summary_enabled: bool = False
+    llm_summary_model: str = SUMMARY_MODEL_ID
+    llm_summary_quantization: str = "int8"
+    llm_summary_max_new_tokens: int = 768
+    llm_summary_temperature: float = 0.2
     splitter_target_minutes: int = 40
     splitter_tolerance_minutes: int = 5
 

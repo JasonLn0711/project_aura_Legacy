@@ -5,6 +5,7 @@ VAD_LEVEL = 3
 
 MODEL_ID = "SoybeanMilk/faster-whisper-Breeze-ASR-25"
 DIARIZATION_MODEL_ID = "pyannote/speaker-diarization-community-1"
+SUMMARY_MODEL_ID = "Qwen/Qwen3.5-9B"
 DEVICE = "cuda"
 COMPUTE_TYPE = "int8"
 GITHUB_REPOSITORY = "JasonLn0711/project_aura"

@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pyqtgraph as pg
-from PyQt6.QtCore import pyqtSlot
+from PyQt6.QtCore import QTimer, pyqtSlot
 from PyQt6.QtWidgets import (
     QComboBox,
     QCheckBox,
@@ -28,6 +28,8 @@ from aura.asr.threads import FileTranscriberThread, ModelLoaderThread, Transcrib
 from aura.audio.denoise import DEFAULT_ACTIVE_DENOISE_PRESET, OFF_DENOISE_PRESET, normalize_denoise_preset
 from aura.audio.capture import AudioRecorderThread
 from aura.audio.export import normalize_wav_to_mp3
+from aura.llm.summary import SummarySettings
+from aura.llm.threads import SummaryThread
 from aura.settings import DEFAULT_SETTINGS
 from aura.system.update_checker import UpdateCheckerThread
 from aura.ui.messages import UI_TEXT
@@ -49,6 +51,7 @@ class TranscriptionTab(QWidget):
         self.executor = ThreadPoolExecutor(max_workers=2)
         self.pending_files = []
         self.model_loader = None
+        self.summary_thread = None
         self.total_batch_count = 0
         self.update_checker = None
 
@@ -116,6 +119,14 @@ class TranscriptionTab(QWidget):
         speaker_layout.addStretch()
         settings_vbox.addLayout(speaker_layout)
         self.update_speaker_controls(self.check_speaker_diarization.isChecked())
+
+        summary_layout = QHBoxLayout()
+        self.check_llm_summary = QCheckBox(self.strings.llm_summary_label)
+        self.check_llm_summary.setToolTip(self.strings.llm_summary_tooltip)
+        self.check_llm_summary.setChecked(self.settings.llm_summary_enabled)
+        summary_layout.addWidget(self.check_llm_summary)
+        summary_layout.addStretch()
+        settings_vbox.addLayout(summary_layout)
 
         norm_layout = QHBoxLayout()
         norm_layout.addWidget(QLabel(self.strings.target_volume_label))
@@ -203,9 +214,14 @@ class TranscriptionTab(QWidget):
         self.btn_save_txt.clicked.connect(self.save_transcript)
         self.btn_save_txt.setFixedHeight(50)
 
+        self.btn_summary = QPushButton(self.strings.llm_summary_button)
+        self.btn_summary.clicked.connect(self.summarize_current_transcript)
+        self.btn_summary.setFixedHeight(50)
+
         btn_layout.addWidget(self.btn_record, stretch=2)
         btn_layout.addWidget(self.btn_import, stretch=2)
         btn_layout.addWidget(self.btn_save_txt, stretch=1)
+        btn_layout.addWidget(self.btn_summary, stretch=1)
         layout.addLayout(btn_layout)
 
         self.batch_hint = QLabel(self.strings.batch_hint)
@@ -365,8 +381,13 @@ class TranscriptionTab(QWidget):
         self.file_thread.text_updated.connect(self.update_log)
         self.file_thread.status_updated.connect(self.update_status_only)
         self.file_thread.error_signal.connect(self.on_file_error)
-        self.file_thread.finished_signal.connect(self.process_next_file)
+        self.file_thread.finished_signal.connect(self.on_file_finished)
         self.file_thread.start()
+
+    def on_file_finished(self):
+        if self.check_llm_summary.isChecked() and self.file_thread and self.file_thread.result_lines:
+            self.start_summary("\n".join(self.file_thread.result_lines))
+        self.process_next_file()
 
     @pyqtSlot(str)
     def on_file_error(self, err_msg):
@@ -418,6 +439,8 @@ class TranscriptionTab(QWidget):
             self.btn_record.setText(self.strings.start_recording)
             self.btn_record.setStyleSheet("font-size: 16px; font-weight: bold;")
             self.status_label.setText(self.strings.recording_finished_processing)
+            if self.check_llm_summary.isChecked():
+                QTimer.singleShot(1000, self.summarize_after_live_asr_idle)
 
     def save_transcript(self):
         content = self.text_area.toPlainText()
@@ -459,6 +482,48 @@ class TranscriptionTab(QWidget):
     def update_status_only(self, text):
         self.status_label.setText(text)
 
+    def summary_settings(self) -> SummarySettings:
+        return SummarySettings(
+            enabled=True,
+            model_id=self.settings.llm_summary_model,
+            quantization=self.settings.llm_summary_quantization,
+            max_new_tokens=self.settings.llm_summary_max_new_tokens,
+            temperature=self.settings.llm_summary_temperature,
+        )
+
+    def transcript_without_summary(self) -> str:
+        content = self.text_area.toPlainText()
+        marker = "===== LLM Summary ====="
+        if marker in content:
+            return content.split(marker, 1)[0].strip()
+        return content.strip()
+
+    def summarize_current_transcript(self):
+        self.start_summary(self.transcript_without_summary())
+
+    def summarize_after_live_asr_idle(self):
+        if self.transcriber_thread.is_idle():
+            self.summarize_current_transcript()
+            return
+        QTimer.singleShot(1000, self.summarize_after_live_asr_idle)
+
+    def start_summary(self, transcript: str):
+        if not transcript.strip():
+            return
+        if self.summary_thread and self.summary_thread.isRunning():
+            return
+        self.btn_summary.setEnabled(False)
+        self.summary_thread = SummaryThread(transcript, self.summary_settings())
+        self.summary_thread.summary_ready.connect(self.update_log)
+        self.summary_thread.status_updated.connect(self.update_status_only)
+        self.summary_thread.error_signal.connect(self.on_summary_error)
+        self.summary_thread.finished.connect(lambda: self.btn_summary.setEnabled(True))
+        self.summary_thread.start()
+
+    @pyqtSlot(str)
+    def on_summary_error(self, err_msg):
+        QMessageBox.critical(self, self.strings.summary_failed, err_msg)
+
     @pyqtSlot(str)
     def process_audio(self, wav_path):
         if "Hardware mounting failed" in wav_path or "No audio recorded" in wav_path:
@@ -478,3 +543,6 @@ class TranscriptionTab(QWidget):
         if self.file_thread and self.file_thread.isRunning():
             self.file_thread.request_cancel()
             self.file_thread.wait(2000)
+        if self.summary_thread and self.summary_thread.isRunning():
+            self.summary_thread.quit()
+            self.summary_thread.wait(2000)

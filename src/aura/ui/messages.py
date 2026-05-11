@@ -33,6 +33,12 @@ class UIStrings:
     )
     speaker_min_label: str = "Min Speakers:"
     speaker_max_label: str = "Max Speakers:"
+    llm_summary_label: str = "Summarize transcript after ASR"
+    llm_summary_tooltip: str = (
+        "Runs optional local Qwen3.5-9B summary after imported-file ASR finishes or shortly after recording stops. "
+        "Output is constrained to Taiwanese Traditional Chinese."
+    )
+    llm_summary_button: str = "🧠 Summarize Current Transcript"
     target_volume_label: str = "Target Volume Normalization (dBFS):"
     beam_size_label: str = "Beam Size (Recommended: 5):"
     initial_prompt_label: str = "Initial Prompt:"
@@ -61,6 +67,7 @@ class UIStrings:
     media_files_filter: str = "Media Files (*.mp4 *.m4a *.mp3 *.wav *.flac *.mkv)"
     batch_tasks_completed: str = "✅ All batch tasks completed"
     file_transcription_failed: str = "File Transcription Failed"
+    summary_failed: str = "LLM Summary Failed"
     recording_finished_processing: str = "✅ Recording finished, processing..."
     notice_title: str = "Notice"
     no_content_to_save: str = "There is currently no content to save."

@@ -7,6 +7,7 @@ from aura.config import (
     DEVICE,
     DIARIZATION_MODEL_ID,
     MODEL_ID,
+    SUMMARY_MODEL_ID,
 )
 from aura.settings import DEFAULT_SETTINGS, AppSettings
 from aura.ui.messages import UIStrings
@@ -26,6 +27,9 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(DEFAULT_SETTINGS.speaker_min_speakers, 2)
         self.assertEqual(DEFAULT_SETTINGS.speaker_max_speakers, 6)
         self.assertEqual(DEFAULT_SETTINGS.speaker_diarization_model, DIARIZATION_MODEL_ID)
+        self.assertFalse(DEFAULT_SETTINGS.llm_summary_enabled)
+        self.assertEqual(DEFAULT_SETTINGS.llm_summary_model, SUMMARY_MODEL_ID)
+        self.assertEqual(DEFAULT_SETTINGS.llm_summary_quantization, "int8")
 
     def test_custom_settings_can_override_runtime_defaults(self):
         settings = AppSettings(device="cpu", compute_type="int8", language=None, target_dbfs=-18.0)

@@ -168,6 +168,14 @@ export HUGGINGFACE_TOKEN=hf_your_token_here
 
 Before using the default `pyannote/speaker-diarization-community-1` model, accept its Hugging Face terms for your account.
 
+LLM summary is optional because it loads a local 9B model:
+
+```bash
+python -m pip install -e ".[summary]"
+```
+
+The default summary backend is `Qwen/Qwen3.5-9B` loaded with `bitsandbytes` int8 quantization on CUDA when available.
+
 ## Run
 
 From this sibling repo:
@@ -192,10 +200,11 @@ The packaged entrypoints are defined in `pyproject.toml`:
 ### Tab 1: Recording & Transcription
 
 1. Wait for the background `ModelLoaderThread` to initialize the ASR model.
-2. Open **Advanced Settings** to adjust target dBFS, compute type, beam size, language, initial prompt, denoise, and optional speaker diarization.
+2. Open **Advanced Settings** to adjust target dBFS, compute type, beam size, language, initial prompt, denoise, optional speaker diarization, and optional LLM summary.
 3. Click **Start Recording** for live recording and live transcription.
 4. Click **Import Audio/Video** for batch transcription. Speaker diarization runs only on imported files when enabled.
-5. Click **Save Transcript** to write the transcript to disk.
+5. Enable **Summarize transcript after ASR** or click **Summarize Current Transcript** to append a local Qwen summary.
+6. Click **Save Transcript** to write the transcript to disk.
 
 ### Tab 2: Smart Splitter
 
@@ -217,6 +226,7 @@ The packaged entrypoints are defined in `pyproject.toml`:
 | Target Volume | `-20 dBFS` |
 | Denoise | Off in UI by default |
 | Speaker Diarization | Off by default; imported-file range defaults to `2-6` speakers |
+| LLM Summary | Off by default; `Qwen/Qwen3.5-9B` with int8 quantization when enabled |
 
 ## Runtime Files
 
@@ -279,6 +289,26 @@ Known limits:
 - Overlapped speech, far-field microphones, noisy rooms, and similar voices can still produce wrong labels.
 - If `pyannote.audio` is not installed or no Hugging Face token is configured, imported-file transcription reports a clear setup error instead of failing silently.
 
+## LLM Summary Behavior
+
+LLM summary is an optional post-ASR workflow. It is intentionally separate from ASR so the app can still run on machines that do not have enough VRAM for a 9B model.
+
+When enabled in Advanced Settings:
+
+- imported-file transcription starts summary after each file's transcript is complete
+- live recording schedules summary shortly after the user stops recording, giving the ASR queue a short drain window
+- the **Summarize Current Transcript** button can run summary manually on the current transcript area
+
+The default model is `Qwen/Qwen3.5-9B`. AURA loads it through `transformers` with `bitsandbytes` `load_in_8bit=True`, so the intended default is local CUDA int8 inference. Summary prompts require output in Taiwanese Traditional Chinese and ask for:
+
+1. one-sentence summary
+2. key points
+3. decisions and consensus
+4. action items with owner, task, and deadline when present
+5. risks, questions, and follow-up items
+
+If the optional summary dependencies are missing, the UI reports the install command instead of failing silently.
+
 ## Denoise Behavior
 
 Live denoise is intentionally conservative and policy-driven:
@@ -328,6 +358,7 @@ Current coverage includes:
 - multi-chunk splitter workflow behavior using synthetic audio
 - runtime settings and UI message formatting defaults
 - speaker diarization timestamp assignment and speaker-count argument handling
+- LLM summary prompt and Qwen int8 default settings
 - import smoke coverage for every `aura` package module
 - short-buffer denoise stability
 - denoise preset normalization and `off` bypass behavior

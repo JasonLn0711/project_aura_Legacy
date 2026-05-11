@@ -89,6 +89,7 @@ project_aura_refactor/
 │   ├── audio/
 │   │   ├── capture.py            # PyAudio/PulseAudio recording thread
 │   │   ├── denoise.py            # Safe noisereduce wrapper
+│   │   ├── export.py             # Recording normalization/export helpers
 │   │   └── splitter.py           # Smart audio splitting thread
 │   ├── system/
 │   │   ├── cuda.py               # CUDA runtime preload and fallback detection
@@ -259,6 +260,7 @@ PYTHONPATH=src python -m unittest discover -s tests
 Current coverage includes:
 
 - file transcription pipeline formatting, prep, cleanup, and cancellation behavior
+- recording WAV-to-MP3 normalization/export behavior
 - short-buffer denoise stability
 - silence denoise bypass
 - synthetic signal preservation smoke check

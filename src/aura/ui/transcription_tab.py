@@ -1,5 +1,4 @@
 import datetime
-import gc
 import logging
 import os
 import webbrowser
@@ -7,7 +6,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pyqtgraph as pg
-from pydub import AudioSegment
 from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -27,6 +25,7 @@ from PyQt6.QtWidgets import (
 
 from aura.asr.threads import FileTranscriberThread, ModelLoaderThread, TranscriberThread
 from aura.audio.capture import AudioRecorderThread
+from aura.audio.export import normalize_wav_to_mp3
 from aura.config import DEFAULT_PROMPT, DEVICE
 from aura.system.update_checker import UpdateCheckerThread
 
@@ -403,19 +402,9 @@ class TranscriptionTab(QWidget):
 
     def _normalization_task(self, wav_path, target_dbfs):
         try:
-            audio = AudioSegment.from_wav(wav_path)
-            normalized = audio.apply_gain(target_dbfs - audio.dBFS)
-            mp3_path = wav_path.replace(".wav", ".mp3")
-            normalized.export(mp3_path, format="mp3")
-            if os.path.exists(wav_path):
-                os.remove(wav_path)
-
-            del audio
-            del normalized
+            normalize_wav_to_mp3(wav_path, target_dbfs)
         except Exception as e:
             logger.exception("Recording normalization failed: %s", e)
-        finally:
-            gc.collect()
 
     def stop_threads(self):
         self.transcriber_thread.stop()

@@ -68,6 +68,26 @@ The lower-level ASR threads also have defaults now:
 - Live transcription uses `The following is a professional meeting record.` when no live prompt is supplied.
 - If a caller explicitly passes an empty string, the app respects that as "no prompt".
 
+## Denoise Behavior
+
+Live denoise is intentionally conservative:
+
+- Silent and near-silent buffers are returned unchanged.
+- Very tiny buffers are skipped because spectral reduction has too little context.
+- Non-silent buffers use `noisereduce` in non-stationary mode with gentle reduction (`prop_decrease=0.35`).
+- FFT and hop sizes are capped dynamically so short live buffers cannot trigger `noverlap must be less than nperseg`.
+
+On the current workstation using the legacy `.record` environment, rough timings were:
+
+| Buffer | Approx. audio length | Runtime |
+| --- | ---: | ---: |
+| 480 samples | 30 ms | ~11 ms |
+| 8,000 samples | 0.5 s | ~12 ms |
+| 16,000 samples | 1.0 s | ~13 ms |
+| 128,000 samples | 8.0 s | ~33 ms |
+
+A synthetic 2-second noisy tone check improved estimated SNR by about `+0.43 dB` without NaN/Inf output. This is only a smoke test, not a substitute for listening tests on real meeting audio.
+
 ## Install
 
 Use a fresh virtual environment in this repo:

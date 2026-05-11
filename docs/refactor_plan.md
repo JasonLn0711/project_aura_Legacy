@@ -26,7 +26,7 @@ Use this sibling repository as the new maintainable Python codebase. Keep `recor
    - Replace `terminate()` on file worker shutdown with cooperative cancellation. Done in `src/aura/asr/threads.py` and `src/aura/ui/transcription_tab.py`.
    - Move temp files into a configurable runtime directory. Done with `AURA_RUNTIME_DIR` support in `src/aura/system/runtime_paths.py`.
    - Add structured logging instead of `print()`. Done for current runtime diagnostics in `src/aura/app.py`, `src/aura/audio/capture.py`, `src/aura/asr/threads.py`, and `src/aura/ui/transcription_tab.py`.
-   - Make denoise behavior policy-driven. Done with explicit `off`, `light`, and `medium` presets in `src/aura/audio/denoise.py`; the current checkbox maps to `light` when enabled.
+   - Make denoise behavior policy-driven. Done with explicit `off`, `light`, and `medium` presets in `src/aura/audio/denoise.py`; Advanced Settings now exposes the presets through a `Denoise Mode` combo box.
 
 4. Pipeline extraction
    - Extract file import/transcription logic from `FileTranscriberThread` into `src/aura/asr/file_pipeline.py`. Done; the Qt class now wraps the service and emits UI signals.

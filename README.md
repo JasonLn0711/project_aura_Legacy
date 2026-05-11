@@ -77,6 +77,7 @@ project_aura_refactor/
 ├── requirements.txt
 ├── docs/
 │   ├── architecture_decisions.md
+│   ├── denoise_upgrade_plan.md
 │   ├── legacy_audio_assistant_v1.5.0.py
 │   ├── refactor_plan.md
 │   └── versioning.md
@@ -243,12 +244,14 @@ The lower-level ASR threads also have explicit defaults:
 Live denoise is intentionally conservative and policy-driven:
 
 - Denoise is represented internally as explicit presets: `off`, `light`, and `medium`.
-- The current UI checkbox keeps the legacy interaction model: unchecked maps to `off`, checked maps to `light`.
+- The Advanced Settings UI exposes these presets as a `Denoise Mode` combo box.
 - Silent and near-silent buffers are returned unchanged.
 - Very tiny buffers are skipped because spectral reduction has too little context.
 - Non-silent `light` buffers use `noisereduce` in non-stationary mode with gentle reduction, `prop_decrease=0.35`.
-- `medium` exists for future UI exposure and uses `prop_decrease=0.55`; it may affect speech detail more.
+- `medium` uses `prop_decrease=0.55`; it may affect speech detail more.
 - FFT and hop sizes are capped dynamically so short live buffers cannot trigger `noverlap must be less than nperseg`.
+
+For the model-based denoise roadmap, see `docs/denoise_upgrade_plan.md`. The short version is: keep `noisereduce` as the lightweight fallback, evaluate DeepFilterNet3 first for real-time ASR preprocessing, and evaluate ClearerVoice-Studio for offline imported-file enhancement.
 
 On the current workstation using the legacy `.record` environment, rough timings were:
 

@@ -203,6 +203,7 @@ The packaged entrypoints are defined in `pyproject.toml`:
 2. Open **Advanced Settings** to adjust target dBFS, compute type, beam size, language, initial prompt, denoise, optional speaker diarization, and optional LLM summary.
 3. Click **Start Recording** for live recording and live transcription.
 4. Click **Import Audio/Video** for batch transcription. Speaker diarization runs only on imported files when enabled.
+   The import dialog lists common media containers including `mp3`, `mp4`, `m4a`, `wav`, `flac`, `mkv`, `mov`, `ogg`, `aac`, `wma`, `aiff`, `opus`, `webm`, `avi`, `m4v`, `3gp`, and `3g2`; the fallback **All Files** filter can still be used for other ffmpeg-supported media.
 5. Enable **Summarize transcript after ASR** or click **Summarize Current Transcript** to append a local Qwen summary.
 6. Click **Save Transcript** to write the transcript to disk.
 

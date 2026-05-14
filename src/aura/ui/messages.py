@@ -1,6 +1,12 @@
 from dataclasses import dataclass
 
+from aura.config import SUPPORTED_IMPORT_EXTENSIONS
 from aura.metadata import __author__, __organization__, __version__
+
+
+def media_filter(label: str, extensions: tuple[str, ...]) -> str:
+    patterns = " ".join(f"*.{extension}" for extension in extensions)
+    return f"{label} ({patterns});;All Files (*)"
 
 
 @dataclass(frozen=True)
@@ -64,7 +70,7 @@ class UIStrings:
     error_title: str = "Error"
     stop_recording_before_import: str = "Please stop recording before importing files."
     select_media_files: str = "Select Media Files"
-    media_files_filter: str = "Media Files (*.mp4 *.m4a *.mp3 *.wav *.flac *.mkv)"
+    media_files_filter: str = media_filter("Media Files", SUPPORTED_IMPORT_EXTENSIONS)
     batch_tasks_completed: str = "✅ All batch tasks completed"
     file_transcription_failed: str = "File Transcription Failed"
     summary_failed: str = "LLM Summary Failed"

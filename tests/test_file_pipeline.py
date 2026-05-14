@@ -1,4 +1,6 @@
 import os
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -74,6 +76,47 @@ class FilePipelineTests(unittest.TestCase):
 
             self.assertEqual(result, target)
             self.assertTrue(target.exists())
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg is required for imported media containers")
+    def test_prepare_import_audio_accepts_common_audio_video_containers(self):
+        container_codecs = {
+            "wav": ["-c:a", "pcm_s16le"],
+            "mp3": ["-c:a", "libmp3lame"],
+            "m4a": ["-c:a", "aac"],
+            "mp4": ["-c:a", "aac"],
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            for extension, codec_args in container_codecs.items():
+                source = tmp_path / f"input.{extension}"
+                target = tmp_path / f"prepared_{extension}.wav"
+                subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-hide_banner",
+                        "-loglevel",
+                        "error",
+                        "-y",
+                        "-f",
+                        "lavfi",
+                        "-i",
+                        "sine=frequency=440:duration=0.1",
+                        "-vn",
+                        *codec_args,
+                        str(source),
+                    ],
+                    check=True,
+                )
+
+                result = prepare_import_audio(
+                    file_path=str(source),
+                    settings=FileTranscriptionSettings(target_dbfs=-20.0),
+                    temp_path=target,
+                )
+
+                self.assertEqual(result, target)
+                self.assertTrue(target.exists(), extension)
 
     def test_prepare_import_audio_honors_pre_cancelled_token(self):
         with tempfile.TemporaryDirectory() as tmpdir:

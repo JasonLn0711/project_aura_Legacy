@@ -20,6 +20,31 @@ class PromptDefaultTests(unittest.TestCase):
         self.assertTrue(thread.enable_denoise)
         self.assertEqual(thread.settings.denoise_preset, DEFAULT_ACTIVE_DENOISE_PRESET)
 
+    def test_file_thread_captures_import_advanced_settings(self):
+        thread = FileTranscriberThread(
+            model=object(),
+            file_path="input.mp4",
+            target_dbfs=-18.0,
+            beam_size=9,
+            initial_prompt="domain words",
+            language=None,
+            enable_denoise=True,
+            denoise_preset="medium",
+            enable_speaker_diarization=True,
+            min_speakers=3,
+            max_speakers=5,
+        )
+
+        self.assertEqual(thread.settings.target_dbfs, -18.0)
+        self.assertEqual(thread.settings.beam_size, 9)
+        self.assertEqual(thread.settings.initial_prompt, "domain words")
+        self.assertIsNone(thread.settings.language)
+        self.assertTrue(thread.enable_denoise)
+        self.assertEqual(thread.settings.denoise_preset, "medium")
+        self.assertTrue(thread.settings.diarization.enabled)
+        self.assertEqual(thread.settings.diarization.min_speakers, 3)
+        self.assertEqual(thread.settings.diarization.max_speakers, 5)
+
     def test_live_thread_starts_with_live_default_prompt(self):
         thread = TranscriberThread()
 

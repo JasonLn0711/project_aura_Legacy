@@ -24,3 +24,24 @@ SUPPORTED_SPLIT_EXTENSIONS = {
     "aiff",
     "opus",
 }
+
+SUPPORTED_IMPORT_EXTENSIONS = (
+    "mp3",
+    "mp4",
+    "m4a",
+    "wav",
+    "flac",
+    "mkv",
+    "mov",
+    "ogg",
+    "aac",
+    "wma",
+    "aiff",
+    "aif",
+    "opus",
+    "webm",
+    "avi",
+    "m4v",
+    "3gp",
+    "3g2",
+)

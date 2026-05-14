@@ -8,6 +8,7 @@ from aura.config import (
     DIARIZATION_MODEL_ID,
     MODEL_ID,
     SUMMARY_MODEL_ID,
+    SUPPORTED_IMPORT_EXTENSIONS,
 )
 from aura.settings import DEFAULT_SETTINGS, AppSettings
 from aura.ui.messages import UIStrings
@@ -48,6 +49,15 @@ class SettingsTests(unittest.TestCase):
             strings.splitter_status("meeting.wav", "/tmp/out"),
             "Source: meeting.wav | Output to: /tmp/out",
         )
+
+    def test_import_media_filter_lists_common_audio_video_types_and_fallback(self):
+        strings = UIStrings()
+
+        for extension in SUPPORTED_IMPORT_EXTENSIONS:
+            self.assertIn(f"*.{extension}", strings.media_files_filter)
+        for required_extension in ("mp3", "mp4", "m4a", "wav"):
+            self.assertIn(required_extension, SUPPORTED_IMPORT_EXTENSIONS)
+        self.assertIn("All Files (*)", strings.media_files_filter)
 
 
 if __name__ == "__main__":

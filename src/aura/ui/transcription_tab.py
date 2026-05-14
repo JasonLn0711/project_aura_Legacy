@@ -278,6 +278,7 @@ class TranscriptionTab(QWidget):
 
             self.btn_record.setEnabled(False)
             self.btn_import.setEnabled(False)
+            self.btn_reload_model.setEnabled(False)
             if self.file_thread is None or not self.file_thread.isRunning():
                 self.process_next_file()
 
@@ -294,6 +295,9 @@ class TranscriptionTab(QWidget):
         self.spin_min_speakers.setEnabled(enabled)
         self.spin_max_speakers.setEnabled(enabled)
 
+    def file_import_active(self) -> bool:
+        return bool(self.pending_files) or bool(self.file_thread and self.file_thread.isRunning())
+
     def selected_speaker_range(self):
         min_speakers = self.spin_min_speakers.value()
         max_speakers = self.spin_max_speakers.value()
@@ -308,6 +312,8 @@ class TranscriptionTab(QWidget):
 
         new_compute = self.combo_compute.currentData()
         self.btn_reload_model.setEnabled(False)
+        self.btn_record.setEnabled(False)
+        self.btn_import.setEnabled(False)
         self.btn_reload_model.setText(self.strings.loading_model)
 
         self.model_loader = ModelLoaderThread(self.settings.device, new_compute)
@@ -334,20 +340,27 @@ class TranscriptionTab(QWidget):
             self.combo_compute.setCurrentIndex(combo_index)
             self.combo_compute.blockSignals(False)
 
-        self.btn_reload_model.setEnabled(True)
+        import_active = self.file_import_active()
+        self.btn_record.setEnabled(not import_active)
+        self.btn_import.setEnabled(not import_active)
+        self.btn_reload_model.setEnabled(not import_active)
         self.btn_reload_model.setText(self.strings.reload_model)
         self.status_label.setText(self.strings.model_ready(active_device, active_compute))
 
     @pyqtSlot(str)
     def on_model_error(self, err_msg):
         QMessageBox.critical(self, self.strings.model_loading_failed, err_msg)
-        self.btn_reload_model.setEnabled(True)
+        import_active = self.file_import_active()
+        self.btn_record.setEnabled(not import_active)
+        self.btn_import.setEnabled(not import_active)
+        self.btn_reload_model.setEnabled(not import_active)
         self.btn_reload_model.setText(self.strings.reload_model)
 
     def process_next_file(self):
         if not self.pending_files:
             self.btn_record.setEnabled(True)
             self.btn_import.setEnabled(True)
+            self.btn_reload_model.setEnabled(True)
             self.status_label.setText(self.strings.batch_tasks_completed)
             self.batch_progress.setVisible(False)
             self.total_batch_count = 0
@@ -424,6 +437,7 @@ class TranscriptionTab(QWidget):
             self.recorder_thread.finished_signal.connect(self.process_audio)
 
             self.btn_import.setEnabled(False)
+            self.btn_reload_model.setEnabled(False)
             self.recorder_thread.start()
 
             self.btn_record.setText(self.strings.stop_recording)
@@ -439,6 +453,7 @@ class TranscriptionTab(QWidget):
             self.btn_record.setText(self.strings.start_recording)
             self.btn_record.setStyleSheet("font-size: 16px; font-weight: bold;")
             self.status_label.setText(self.strings.recording_finished_processing)
+            QTimer.singleShot(1000, self.enable_reload_after_live_asr_idle)
             if self.check_llm_summary.isChecked():
                 QTimer.singleShot(1000, self.summarize_after_live_asr_idle)
 
@@ -506,6 +521,14 @@ class TranscriptionTab(QWidget):
             self.summarize_current_transcript()
             return
         QTimer.singleShot(1000, self.summarize_after_live_asr_idle)
+
+    def enable_reload_after_live_asr_idle(self):
+        if self.recorder_thread is not None or self.file_import_active():
+            return
+        if self.transcriber_thread.is_idle():
+            self.btn_reload_model.setEnabled(True)
+            return
+        QTimer.singleShot(1000, self.enable_reload_after_live_asr_idle)
 
     def start_summary(self, transcript: str):
         if not transcript.strip():

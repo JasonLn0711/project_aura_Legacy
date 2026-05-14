@@ -25,6 +25,13 @@ class VersioningTests(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertEqual(match.group(1), __version__)
 
+    def test_readme_release_tag_matches_runtime_metadata(self):
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        match = re.search(r"\| Current Release Tag \| `([^`]+)` \|", readme)
+
+        self.assertIsNotNone(match)
+        self.assertEqual(match.group(1), f"v{__version__}")
+
 
 if __name__ == "__main__":
     unittest.main()

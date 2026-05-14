@@ -392,7 +392,7 @@ Before tagging or publishing a release, run:
 make check PYTHON=/path/to/python
 ```
 
-Version bumps must follow the strict rule in [`docs/versioning.md`](docs/versioning.md): update `pyproject.toml`, `src/aura/metadata.py`, and the README `Refactor Version` in one dedicated version commit, then tag with the leading-`v` form such as `vX.Y.Z`.
+Version bumps must follow the strict rule in [`docs/versioning.md`](docs/versioning.md). Use `make bump-version VERSION=X.Y.Z` to synchronize `pyproject.toml`, `src/aura/metadata.py`, and the README version rows in one dedicated version commit, then tag with the leading-`v` form such as `vX.Y.Z`.
 
 ## Troubleshooting
 

@@ -16,8 +16,9 @@ Every release version bump must update these files in the same commit:
 - `pyproject.toml`: `[project].version`
 - `src/aura/metadata.py`: `__version__`
 - `README.md`: `Refactor Version` table row
+- `README.md`: `Current Release Tag` table row, using the leading-`v` tag form
 
-If any of these three values differ, the release is invalid.
+If any of these values differ, the release is invalid.
 
 ## Release Commit Rule
 
@@ -29,9 +30,10 @@ make check PYTHON=/path/to/python
 make build PYTHON=/path/to/python
 ```
 
-Then update the required version files and commit:
+Then update the required version files with the repository helper and commit:
 
 ```bash
+make bump-version VERSION=X.Y.Z PYTHON=/path/to/python
 git add pyproject.toml src/aura/metadata.py README.md
 git commit -m "bump version to vX.Y.Z"
 ```

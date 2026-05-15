@@ -59,7 +59,7 @@ The app is designed for professional meeting and lecture workflows. It includes 
 | Real-time Denoising | Optional `noisereduce` processing before ASR for noisy environments. |
 | Volume Normalization | Dynamically standardizes imported and recorded audio to a target dBFS, default `-20`. |
 | Asynchronous Architecture | `ModelLoaderThread` prevents UI freezing during initialization and compute-type switching. |
-| CUDA Fallback | CUDA runtime preload and CPU/int8 fallback when CUDA libraries are unavailable. |
+| RTX/CUDA-only ASR | ASR model loading is pinned to `cuda`; CPU fallback is disabled so transcription never silently leaves the RTX GPU path. |
 | System Tray Integration | Minimizes to background with `QSystemTrayIcon`. |
 | Auto-update Checker | Background GitHub release check preserved from the original app. |
 | Smart Splitting | Uses silence detection to cut near natural pauses and preserves original bitrate when possible. |
@@ -100,7 +100,7 @@ project_aura_refactor/
 │   │   ├── splitter.py           # Thin Qt wrapper for smart audio splitting
 │   │   └── splitter_pipeline.py  # Testable split-point detection and export service
 │   ├── system/
-│   │   ├── cuda.py               # CUDA runtime preload and fallback detection
+│   │   ├── cuda.py               # CUDA runtime preload and required-library detection
 │   │   ├── native_audio.py       # ALSA/JACK stderr suppression helpers
 │   │   └── update_checker.py     # Background GitHub release check
 │   └── ui/
@@ -130,7 +130,7 @@ project_aura_refactor/
 
 - OS: Ubuntu 22.04 / 24.04 desktop
 - Python: 3.10+
-- GPU: NVIDIA CUDA-capable GPU is optional but recommended for faster ASR
+- GPU: NVIDIA RTX / CUDA-capable GPU is required for ASR
 - Audio stack: PulseAudio or PipeWire with PulseAudio compatibility
 
 ### System Packages
@@ -222,8 +222,8 @@ The packaged entrypoints are defined in `pyproject.toml`:
 | Chunk Size | `30 ms` / `480 samples` |
 | VAD Level | `3` |
 | ASR Model | `SoybeanMilk/faster-whisper-Breeze-ASR-25` |
-| Device | `cuda`, with CPU fallback |
-| Compute Type | `int8` on CUDA/RTX GPU by default, with CPU/int8 fallback only when CUDA is unavailable |
+| Device | `cuda` only; CPU fallback is disabled |
+| Compute Type | `int8` on CUDA/RTX GPU by default |
 | Target Volume | `-20 dBFS` |
 | Denoise | Off in UI by default |
 | Speaker Diarization | Off by default; imported-file range defaults to `2-6` speakers |
@@ -404,7 +404,15 @@ Version bumps must follow the strict rule in [`docs/versioning.md`](docs/version
 
 ### CUDA Runtime Missing
 
-The refactor keeps CUDA runtime preload logic in `src/aura/system/cuda.py`. If required CUDA libraries are unavailable, model loading falls back to CPU/int8 and emits a UI status message.
+The refactor keeps CUDA runtime preload logic in `src/aura/system/cuda.py`. If required CUDA libraries are unavailable, ASR model loading fails with a clear error. It does not fall back to CPU.
+
+For `uv` installs on Linux x86_64, the project metadata includes NVIDIA cuBLAS
+and cuDNN runtime wheels. Re-sync the environment after pulling this change:
+
+```bash
+uv sync
+uv run aura
+```
 
 ### JACK / ALSA Probe Noise
 

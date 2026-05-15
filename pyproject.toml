@@ -17,6 +17,8 @@ dependencies = [
   "faster-whisper>=1.2.1",
   "noisereduce>=3.0.3",
   "numpy>=2.0",
+  "nvidia-cublas-cu12>=12.9.1.4; platform_system == 'Linux' and platform_machine == 'x86_64'",
+  "nvidia-cudnn-cu12>=9.19.0.56; platform_system == 'Linux' and platform_machine == 'x86_64'",
   "pyaudio>=0.2.14",
   "pydub>=0.25.1",
   "pyqt6>=6.10",

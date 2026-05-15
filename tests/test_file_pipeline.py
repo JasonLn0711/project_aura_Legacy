@@ -62,6 +62,12 @@ class FilePipelineTests(unittest.TestCase):
 
         self.assertIn("ffmpeg/ffprobe", message)
 
+    def test_normalize_file_transcription_error_keeps_gpu_only_policy(self):
+        message = normalize_file_transcription_error(RuntimeError("libcublas.so.12 not found"))
+
+        self.assertIn("RTX/CUDA GPU", message)
+        self.assertIn("CPU fallback is disabled", message)
+
     def test_prepare_import_audio_writes_temp_file(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             source = Path(tmpdir) / "input.wav"

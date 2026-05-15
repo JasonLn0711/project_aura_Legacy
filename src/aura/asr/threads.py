@@ -24,6 +24,19 @@ from aura.system.runtime_paths import append_transcript_backup
 
 logger = logging.getLogger(__name__)
 
+REQUIRED_ASR_DEVICE = "cuda"
+
+
+def cuda_required_error(detail: str) -> str:
+    return (
+        "ASR is configured to require the NVIDIA RTX/CUDA GPU. "
+        "CPU fallback is disabled.\n\n"
+        f"CUDA detail: {detail}\n\n"
+        "Install the CUDA runtime/cuBLAS/cuDNN libraries in this environment, "
+        "then reload the model."
+    )
+
+
 class FileTranscriberThread(QThread):
     text_updated = pyqtSignal(str)
     status_updated = pyqtSignal(str)
@@ -120,46 +133,43 @@ class ModelLoaderThread(QThread):
 
     def __init__(self, device, compute_type):
         super().__init__()
-        self.device = device
+        self.requested_device = device
+        self.device = REQUIRED_ASR_DEVICE
         self.compute_type = compute_type
-        self.actual_device = device
+        self.actual_device = REQUIRED_ASR_DEVICE
         self.actual_compute_type = compute_type
         self.runtime_note = ""
 
     def run(self):
         try:
-            if self.device == "cuda":
-                runtime_ready, runtime_source = preload_cuda_runtime_libraries()
-                if runtime_ready:
-                    self.runtime_note = f"CUDA runtime source: {runtime_source}"
-                else:
-                    self.actual_device = "cpu"
-                    self.actual_compute_type = "int8"
-                    self.runtime_note = f"CUDA runtime unavailable ({runtime_source}). Falling back to CPU/int8."
-                    self.status_signal.emit(f"⚠️ {self.runtime_note}")
+            if self.requested_device != REQUIRED_ASR_DEVICE:
+                self.status_signal.emit(
+                    f"⚠️ ASR is pinned to {REQUIRED_ASR_DEVICE}; ignoring requested device "
+                    f"`{self.requested_device}`."
+                )
+
+            runtime_ready, runtime_source = preload_cuda_runtime_libraries()
+            if runtime_ready:
+                self.runtime_note = f"CUDA runtime source: {runtime_source}"
+            else:
+                self.runtime_note = cuda_required_error(runtime_source)
+                self.error_signal.emit(self.runtime_note)
+                return
 
             self.status_signal.emit(
-                f"🚀 Loading model in background ({self.actual_device}/{self.actual_compute_type})..."
+                f"🚀 Loading ASR model on required RTX/CUDA GPU "
+                f"({self.actual_device}/{self.actual_compute_type})..."
             )
             model = WhisperModel(
                 DEFAULT_SETTINGS.model_id,
-                device=self.actual_device,
+                device=REQUIRED_ASR_DEVICE,
                 compute_type=self.actual_compute_type,
             )
             self.finished_signal.emit(model)
         except Exception as e:
             error_msg = str(e)
-            if self.actual_device == "cuda" and is_cuda_runtime_error(error_msg):
-                try:
-                    self.actual_device = "cpu"
-                    self.actual_compute_type = "int8"
-                    self.runtime_note = "CUDA runtime failed during initialization. Retrying on CPU/int8."
-                    self.status_signal.emit(f"⚠️ {self.runtime_note}")
-                    model = WhisperModel(DEFAULT_SETTINGS.model_id, device="cpu", compute_type="int8")
-                    self.finished_signal.emit(model)
-                    return
-                except Exception as fallback_error:
-                    error_msg = f"{error_msg} | CPU fallback failed: {fallback_error}"
+            if is_cuda_runtime_error(error_msg):
+                error_msg = cuda_required_error(error_msg)
             if "out of memory" in error_msg.lower():
                 error_msg = "Insufficient GPU memory. Try switching to int8 precision or closing other programs."
             self.error_signal.emit(error_msg)

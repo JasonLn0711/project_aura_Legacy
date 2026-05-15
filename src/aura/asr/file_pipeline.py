@@ -101,9 +101,9 @@ def normalize_file_transcription_error(error: Exception) -> str:
     if is_cuda_runtime_error(error_msg):
         return (
             "CUDA runtime is incomplete on this machine.\n"
-            "The app tried to use the GPU model, but a CUDA runtime library is missing.\n\n"
-            "Quick fix: open Advanced Settings, choose `int8`, click Reload Model, "
-            "then import the file again."
+            "ASR is required to run on the RTX/CUDA GPU, but a CUDA runtime library is missing.\n\n"
+            "CPU fallback is disabled. Install CUDA/cuBLAS/cuDNN support in this uv environment, "
+            "then reload the model and import the file again."
         )
     if "ffmpeg" in lower_msg or "ffprobe" in lower_msg:
         return (
